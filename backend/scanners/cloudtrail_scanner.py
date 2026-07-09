@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-from engine.rules import analyze_cloudtrail
+from engine.rule_engine import analyze_cloudtrail
 
 
 def discover_cloudtrail():

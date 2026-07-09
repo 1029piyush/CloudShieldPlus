@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-from engine.rules import analyze_s3
+from engine.rule_engine import analyze_s3
 
 
 def get_bucket_region(s3, bucket_name):

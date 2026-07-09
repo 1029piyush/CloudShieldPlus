@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-from engine.rules import analyze_security_groups
+from engine.rule_engine import analyze_security_groups
 
 
 def discover_security_groups():

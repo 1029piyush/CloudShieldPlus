@@ -1,6 +1,6 @@
 from botocore.exceptions import ClientError
 from services.session_manager import get_session
-from engine.rules import analyze_password_policy
+from engine.rule_engine import analyze_password_policy
 
 
 def discover_password_policy():

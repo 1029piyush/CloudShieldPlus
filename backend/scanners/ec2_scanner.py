@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-from engine.rules import analyze_ec2
+from engine.rule_engine import analyze_ec2
 
 def discover_ec2():
 

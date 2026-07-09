@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-from engine.rules import analyze_iam
+from engine.rule_engine import analyze_iam
 
 
 def list_iam_users():
