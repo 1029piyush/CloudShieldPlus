@@ -1,4 +1,5 @@
 from services.session_manager import get_session
+from engine.rules import analyze_s3
 
 
 def get_bucket_region(s3, bucket_name):
@@ -95,7 +96,10 @@ def discover_s3():
             "public_access_block": get_public_access_block(s3, bucket["Name"])
         })
 
+    findings = analyze_s3(resources)
+
     return {
-        "service": "S3",
-        "resources": resources
-    }
+    "service": "S3",
+    "resources": resources,
+    "findings": findings
+}

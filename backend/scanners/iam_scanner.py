@@ -38,11 +38,19 @@ def list_iam_users():
             for policy in attached["AttachedPolicies"]:
                 policies.append(policy["PolicyName"])
 
+            # Check MFA devices
+            mfa_response = iam.list_mfa_devices(
+                UserName=username
+            )
+
+            mfa_enabled = len(mfa_response["MFADevices"]) > 0
+
             resources.append({
                 "username": username,
                 "arn": user["Arn"],
                 "created": str(user["CreateDate"]),
-                "policies": policies
+                "policies": policies,
+                "mfa_enabled": mfa_enabled
             })
 
         # Analyze resources using Rule Engine

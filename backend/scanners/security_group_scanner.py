@@ -1,4 +1,5 @@
 from services.session_manager import get_session
+from engine.rules import analyze_security_groups
 
 
 def discover_security_groups():
@@ -70,8 +71,9 @@ def discover_security_groups():
             "outbound_rules": outbound_rules
 
         })
-
+        findings = analyze_security_groups(resources)
     return {
-        "service": "SecurityGroups",
-        "resources": resources
-    }
+    "service": "SecurityGroups",
+    "resources": resources,
+    "findings": findings
+}

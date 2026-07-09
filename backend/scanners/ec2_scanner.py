@@ -1,5 +1,5 @@
 from services.session_manager import get_session
-
+from engine.rules import analyze_ec2
 
 def discover_ec2():
 
@@ -67,8 +67,9 @@ def discover_ec2():
     
 
    })
-
+    findings = analyze_ec2(resources)
     return {
         "service": "EC2",
-        "resources": resources
+        "resources": resources,
+        "findings": findings
     }

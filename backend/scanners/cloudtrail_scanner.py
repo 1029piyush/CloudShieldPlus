@@ -1,4 +1,5 @@
 from services.session_manager import get_session
+from engine.rules import analyze_cloudtrail
 
 
 def discover_cloudtrail():
@@ -6,9 +7,14 @@ def discover_cloudtrail():
     session = get_session()
 
     if session is None:
+
+        resources = []
+        findings = analyze_cloudtrail(resources)
+
         return {
             "service": "CloudTrail",
-            "resources": []
+            "resources": resources,
+            "findings": findings
         }
 
     cloudtrail = session.client("cloudtrail")
@@ -35,7 +41,11 @@ def discover_cloudtrail():
 
         })
 
+    # Analyze CloudTrail findings (works even if resources is empty)
+    findings = analyze_cloudtrail(resources)
+
     return {
         "service": "CloudTrail",
-        "resources": resources
+        "resources": resources,
+        "findings": findings
     }
