@@ -1,5 +1,52 @@
+from botocore.exceptions import ClientError
+
 from services.session_manager import get_session
 from engine.rule_engine import analyze_cloudtrail
+
+
+def get_logging_status(client, trail_name):
+
+    try:
+
+        response = client.get_trail_status(
+            Name=trail_name
+        )
+
+        return response.get("IsLogging", False)
+
+    except ClientError:
+
+        return False
+
+
+def get_event_selectors(client, trail_name):
+
+    try:
+
+        response = client.get_event_selectors(
+            TrailName=trail_name
+        )
+
+        return response.get("EventSelectors", [])
+
+    except ClientError:
+
+        return []
+
+
+def get_insight_selectors(client, trail_name):
+
+    try:
+
+        response = client.get_insight_selectors(
+            TrailName=trail_name
+        )
+
+        return response.get("InsightSelectors", [])
+
+    except ClientError:
+
+        return []
 
 
 def discover_cloudtrail():
@@ -9,43 +56,93 @@ def discover_cloudtrail():
     if session is None:
 
         resources = []
-        findings = analyze_cloudtrail(resources)
 
         return {
+
             "service": "CloudTrail",
+
             "resources": resources,
-            "findings": findings
+
+            "findings": analyze_cloudtrail(resources)
+
         }
 
     cloudtrail = session.client("cloudtrail")
 
-    response = cloudtrail.describe_trails()
+    trails = cloudtrail.describe_trails().get(
+        "trailList",
+        []
+    )
 
     resources = []
 
-    for trail in response.get("trailList", []):
+    for trail in trails:
 
         resources.append({
 
             "name": trail.get("Name"),
 
+            "trail_arn": trail.get("TrailARN"),
+
+            "home_region": trail.get("HomeRegion"),
+
             "is_multi_region": trail.get("IsMultiRegionTrail"),
 
-            "log_validation": trail.get("LogFileValidationEnabled"),
+            "is_organization_trail":
+                trail.get("IsOrganizationTrail", False),
 
-            "s3_bucket": trail.get("S3BucketName"),
+            "include_global_service_events":
+                trail.get("IncludeGlobalServiceEvents"),
 
-            "kms_key": trail.get("KmsKeyId"),
+            "log_validation":
+                trail.get("LogFileValidationEnabled"),
 
-            "is_logging": True
+            "is_logging":
+                get_logging_status(
+                    cloudtrail,
+                    trail.get("Name")
+                ),
+
+            "s3_bucket":
+                trail.get("S3BucketName"),
+
+            "s3_key_prefix":
+                trail.get("S3KeyPrefix"),
+
+            "kms_key":
+                trail.get("KmsKeyId"),
+
+            "cloudwatch_log_group":
+                trail.get("CloudWatchLogsLogGroupArn"),
+
+            "cloudwatch_role":
+                trail.get("CloudWatchLogsRoleArn"),
+
+            "sns_topic":
+                trail.get("SnsTopicARN"),
+
+            "event_selectors":
+                get_event_selectors(
+                    cloudtrail,
+                    trail.get("Name")
+                ),
+
+            "insight_selectors":
+                get_insight_selectors(
+                    cloudtrail,
+                    trail.get("Name")
+                )
 
         })
 
-    # Analyze CloudTrail findings (works even if resources is empty)
     findings = analyze_cloudtrail(resources)
 
     return {
+
         "service": "CloudTrail",
+
         "resources": resources,
+
         "findings": findings
+
     }

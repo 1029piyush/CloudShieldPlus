@@ -2,6 +2,51 @@ from services.session_manager import get_session
 from engine.rule_engine import analyze_security_groups
 
 
+def parse_rules(rules):
+
+    parsed_rules = []
+
+    for rule in rules:
+
+        parsed_rules.append({
+
+            "protocol": rule.get("IpProtocol"),
+
+            "from_port": rule.get("FromPort"),
+
+            "to_port": rule.get("ToPort"),
+
+            "ipv4": [
+                ip["CidrIp"]
+                for ip in rule.get("IpRanges", [])
+            ],
+
+            "ipv6": [
+                ip["CidrIpv6"]
+                for ip in rule.get("Ipv6Ranges", [])
+            ],
+
+            "prefix_lists": [
+                prefix["PrefixListId"]
+                for prefix in rule.get("PrefixListIds", [])
+            ],
+
+            "referenced_security_groups": [
+
+                {
+                    "group_id": pair["GroupId"],
+                    "user_id": pair.get("UserId")
+                }
+
+                for pair in rule.get("UserIdGroupPairs", [])
+
+            ]
+
+        })
+
+    return parsed_rules
+
+
 def discover_security_groups():
 
     session = get_session()
@@ -9,7 +54,8 @@ def discover_security_groups():
     if session is None:
         return {
             "service": "SecurityGroups",
-            "resources": []
+            "resources": [],
+            "findings": []
         }
 
     ec2 = session.client("ec2")
@@ -20,41 +66,13 @@ def discover_security_groups():
 
     for sg in response["SecurityGroups"]:
 
-        inbound_rules = []
+        tags = {
 
-        for rule in sg.get("IpPermissions", []):
+            tag["Key"]: tag["Value"]
 
-            inbound_rules.append({
-                "protocol": rule.get("IpProtocol"),
-                "from_port": rule.get("FromPort"),
-                "to_port": rule.get("ToPort"),
-                "ipv4": [
-                    ip["CidrIp"]
-                    for ip in rule.get("IpRanges", [])
-                ],
-                "ipv6": [
-                    ip["CidrIpv6"]
-                    for ip in rule.get("Ipv6Ranges", [])
-                ]
-            })
+            for tag in sg.get("Tags", [])
 
-        outbound_rules = []
-
-        for rule in sg.get("IpPermissionsEgress", []):
-
-            outbound_rules.append({
-                "protocol": rule.get("IpProtocol"),
-                "from_port": rule.get("FromPort"),
-                "to_port": rule.get("ToPort"),
-                "ipv4": [
-                    ip["CidrIp"]
-                    for ip in rule.get("IpRanges", [])
-                ],
-                "ipv6": [
-                    ip["CidrIpv6"]
-                    for ip in rule.get("Ipv6Ranges", [])
-                ]
-            })
+        }
 
         resources.append({
 
@@ -64,16 +82,30 @@ def discover_security_groups():
 
             "description": sg["Description"],
 
+            "owner_id": sg["OwnerId"],
+
             "vpc_id": sg.get("VpcId"),
 
-            "inbound_rules": inbound_rules,
+            "tags": tags,
 
-            "outbound_rules": outbound_rules
+            "inbound_rules": parse_rules(
+                sg.get("IpPermissions", [])
+            ),
+
+            "outbound_rules": parse_rules(
+                sg.get("IpPermissionsEgress", [])
+            )
 
         })
-        findings = analyze_security_groups(resources)
+
+    findings = analyze_security_groups(resources)
+
     return {
-    "service": "SecurityGroups",
-    "resources": resources,
-    "findings": findings
-}
+
+        "service": "SecurityGroups",
+
+        "resources": resources,
+
+        "findings": findings
+
+    }
