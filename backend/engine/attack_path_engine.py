@@ -1,3 +1,6 @@
+from engine.attack_path import AttackPath
+
+
 def analyze_attack_paths(findings):
 
     attack_paths = []
@@ -10,62 +13,90 @@ def analyze_attack_paths(findings):
     # AP001 - Credential Theft
     if "IAM002" in rule_ids:
 
-        attack_paths.append({
+        attack_paths.append(
 
-            "attack_id": "AP001",
+            AttackPath(
 
-            "title": "Credential Theft Attack",
+                attack_id="AP001",
 
-            "risk": "High",
+                title="Credential Theft Attack",
 
-            "description":
-                "IAM users without MFA are vulnerable to credential theft attacks.",
+                risk="High",
 
-            "related_findings": [
-                "IAM002"
-            ]
+                description="IAM users without MFA are vulnerable to credential theft attacks.",
 
-        })
+                likelihood="High",
+
+                impact="High",
+
+                related_findings=[
+                    "IAM002"
+                ],
+
+                mitigation="Enable MFA for all IAM users."
+
+            ).to_dict()
+
+        )
 
     # AP002 - Public Data Exposure
     if "S3001" in rule_ids:
 
-        attack_paths.append({
+        attack_paths.append(
 
-            "attack_id": "AP002",
+            AttackPath(
 
-            "title": "Public Data Exposure",
+                attack_id="AP002",
 
-            "risk": "Critical",
+                title="Public Data Exposure",
 
-            "description":
-                "An S3 bucket without Block Public Access may expose sensitive data.",
+                risk="Critical",
 
-            "related_findings": [
-                "S3001"
-            ]
+                description="An S3 bucket without Block Public Access may expose sensitive information.",
 
-        })
+                likelihood="Medium",
 
-    # AP003 - Stealth Attack
-    if "CT001" in rule_ids and "IAM002" in rule_ids:
+                impact="Critical",
 
-        attack_paths.append({
+                related_findings=[
+                    "S3001",
+                    "S3002"
+                ],
 
-            "attack_id": "AP003",
+                mitigation="Enable Block Public Access and Versioning."
 
-            "title": "Stealth Credential Compromise",
+            ).to_dict()
 
-            "risk": "Critical",
+        )
 
-            "description":
-                "An attacker can compromise an IAM account without MFA, and the absence of CloudTrail reduces the chance of detection.",
+    # AP003 - Stealth Credential Compromise
+    if "IAM002" in rule_ids and "CT001" in rule_ids:
 
-            "related_findings": [
-                "IAM002",
-                "CT001"
-            ]
+        attack_paths.append(
 
-        })
+            AttackPath(
+
+                attack_id="AP003",
+
+                title="Stealth Credential Compromise",
+
+                risk="Critical",
+
+                description="An attacker can compromise an IAM account without MFA while remaining difficult to detect because CloudTrail is not configured.",
+
+                likelihood="High",
+
+                impact="Critical",
+
+                related_findings=[
+                    "IAM002",
+                    "CT001"
+                ],
+
+                mitigation="Enable MFA and configure CloudTrail."
+
+            ).to_dict()
+
+        )
 
     return attack_paths
