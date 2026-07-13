@@ -30,46 +30,86 @@ def list_iam_users():
 
             username = user["UserName"]
 
-            # ----------------------------
-            # Managed Policies
-            # ----------------------------
-            managed_policies = iam.list_attached_user_policies(
+            # --------------------------------------------------
+            # Managed Policies (INCLUDING POLICY DOCUMENTS)
+            # --------------------------------------------------
+
+            attached = iam.list_attached_user_policies(
                 UserName=username
             )["AttachedPolicies"]
 
-            # ----------------------------
+            managed_policies = []
+
+            for policy in attached:
+
+                policy_meta = iam.get_policy(
+                    PolicyArn=policy["PolicyArn"]
+                )["Policy"]
+
+                version = iam.get_policy_version(
+
+                    PolicyArn=policy["PolicyArn"],
+
+                    VersionId=policy_meta["DefaultVersionId"]
+
+                )["PolicyVersion"]
+
+                managed_policies.append({
+
+                    "name": policy["PolicyName"],
+
+                    "arn": policy["PolicyArn"],
+
+                    "default_version": policy_meta["DefaultVersionId"],
+
+                    "document": version["Document"]
+
+                })
+
+            # --------------------------------------------------
             # Inline Policies
-            # ----------------------------
+            # --------------------------------------------------
+
             inline_policies = iam.list_user_policies(
                 UserName=username
             )["PolicyNames"]
 
-            # ----------------------------
+            # --------------------------------------------------
             # Groups
-            # ----------------------------
+            # --------------------------------------------------
+
             groups = iam.list_groups_for_user(
                 UserName=username
             )["Groups"]
 
-            # ----------------------------
+            # --------------------------------------------------
             # MFA
-            # ----------------------------
+            # --------------------------------------------------
+
             mfa_devices = iam.list_mfa_devices(
                 UserName=username
             )["MFADevices"]
 
-            # ----------------------------
+            # --------------------------------------------------
             # Console Login
-            # ----------------------------
+            # --------------------------------------------------
+
             try:
-                iam.get_login_profile(UserName=username)
+
+                iam.get_login_profile(
+                    UserName=username
+                )
+
                 console_login = True
+
             except ClientError:
+
                 console_login = False
 
-            # ----------------------------
+            # --------------------------------------------------
             # Access Keys
-            # ----------------------------
+            # --------------------------------------------------
+
             access_keys = []
 
             key_response = iam.list_access_keys(
@@ -80,14 +120,11 @@ def list_iam_users():
 
                 try:
 
-                    last_used = iam.get_access_key_last_used(
-                        AccessKeyId=key["AccessKeyId"]
-                    )
+                    usage = iam.get_access_key_last_used(
 
-                    usage = last_used.get(
-                        "AccessKeyLastUsed",
-                        {}
-                    )
+                            AccessKeyId=key["AccessKeyId"]
+
+                    ).get("AccessKeyLastUsed", {})
 
                 except ClientError:
 
@@ -95,36 +132,37 @@ def list_iam_users():
 
                 access_keys.append({
 
-                    "access_key_id": key["AccessKeyId"],
+                    "access_key_id":
+                        key["AccessKeyId"],
 
-                    "status": key["Status"],
+                    "status":
+                        key["Status"],
 
-                    "created": str(key["CreateDate"]),
+                    "created":
+                        str(key["CreateDate"]),
 
-                    "last_used": str(
-                        usage.get("LastUsedDate")
-                    ),
+                    "last_used":
+                        str(usage.get("LastUsedDate")),
 
-                    "last_service": usage.get(
-                        "ServiceName"
-                    ),
+                    "last_service":
+                        usage.get("ServiceName"),
 
-                    "last_region": usage.get(
-                        "Region"
-                    )
+                    "last_region":
+                        usage.get("Region")
 
                 })
 
-            # ----------------------------
+            # --------------------------------------------------
             # Tags
-            # ----------------------------
+            # --------------------------------------------------
+
             tags = iam.list_user_tags(
                 UserName=username
             )["Tags"]
-
-            # ----------------------------
+            # --------------------------------------------------
             # Resource Object
-            # ----------------------------
+            # --------------------------------------------------
+
             resources.append({
 
                 "username": username,
@@ -137,40 +175,57 @@ def list_iam_users():
 
                 "created": str(user["CreateDate"]),
 
-                "password_last_used": str(
-                    user.get("PasswordLastUsed")
+                "password_last_used": (
+                    str(user["PasswordLastUsed"])
+                    if "PasswordLastUsed" in user
+                    else None
                 ),
 
                 "permissions_boundary":
                     user.get("PermissionsBoundary"),
 
-                "managed_policies": [
-                    p["PolicyName"]
-                    for p in managed_policies
-                ],
+                # Rich managed policies
+                "managed_policies": managed_policies,
 
                 "inline_policies": inline_policies,
 
                 "groups": [
-                    g["GroupName"]
-                    for g in groups
+
+                    group["GroupName"]
+
+                    for group in groups
+
                 ],
 
-                "mfa_enabled": len(
-                    mfa_devices
-                ) > 0,
+                "mfa_enabled":
 
-                "mfa_devices": len(
-                    mfa_devices
-                ),
+                    len(mfa_devices) > 0,
 
-                "console_login": console_login,
+                "mfa_devices":
 
-                "access_keys": access_keys,
+                    len(mfa_devices),
 
-                "tags": tags
+                "console_login":
+
+                    console_login,
+
+                "access_keys":
+
+                    access_keys,
+
+                "tags": {
+
+                    tag["Key"]: tag["Value"]
+
+                    for tag in tags
+
+                }
 
             })
+
+        # --------------------------------------------------
+        # Rule Engine
+        # --------------------------------------------------
 
         findings = analyze_iam(resources)
 

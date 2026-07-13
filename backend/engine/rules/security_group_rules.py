@@ -1,6 +1,5 @@
 from engine.findings import Finding
 
-
 def analyze_security_groups(resources):
 
     findings = []
