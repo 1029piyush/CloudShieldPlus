@@ -121,6 +121,48 @@ RULE_PROFILES = {
         "confidence": 10
     },
 
+    "EC2003": {
+        "business_impact": 8,
+        "exploitability": 6,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "EC2004": {
+        "business_impact": 6,
+        "exploitability": 4,
+        "exposure": 4,
+        "confidence": 10
+    },
+
+    "EC2005": {
+        "business_impact": 5,
+        "exploitability": 3,
+        "exposure": 3,
+        "confidence": 10
+    },
+
+    "EC2006": {
+        "business_impact": 7,
+        "exploitability": 6,
+        "exposure": 6,
+        "confidence": 10
+    },
+
+    "EC2007": {
+        "business_impact": 5,
+        "exploitability": 4,
+        "exposure": 4,
+        "confidence": 10
+    },
+
+    "EC2008": {
+        "business_impact": 9,
+        "exploitability": 9,
+        "exposure": 9,
+        "confidence": 10
+    },
+
     # ================= Security Groups =================
 
     "SG001": {

@@ -28,6 +28,18 @@ def discover_ec2():
                 if tag["Key"] == "Name":
                     instance_name = tag["Value"]
 
+            metadata_options = instance.get("MetadataOptions", {})
+            ebs_volumes = [
+                mapping["Ebs"]
+                for mapping in instance.get("BlockDeviceMappings", [])
+                if "Ebs" in mapping
+            ]
+            unencrypted_ebs_volumes = [
+                volume.get("VolumeId", "unknown-volume")
+                for volume in ebs_volumes
+                if not volume.get("Encrypted", False)
+            ]
+
             resources.append ({
 
     "instance_id": instance["InstanceId"],
@@ -52,10 +64,19 @@ def discover_ec2():
     else None
 ),
 
-"imdsv2_required": (
-    instance.get("MetadataOptions", {})
-    .get("HttpTokens") == "required"
-),
+"imdsv2_required": metadata_options.get("HttpTokens") == "required",
+
+"metadata_http_endpoint_enabled": metadata_options.get("HttpEndpoint", "enabled") == "enabled",
+
+"metadata_hop_limit": metadata_options.get("HttpPutResponseHopLimit"),
+
+"metadata_tags_enabled": metadata_options.get("InstanceMetadataTags") == "enabled",
+
+"termination_protection": instance.get("DisableApiTermination", False),
+
+"ebs_volume_count": len(ebs_volumes),
+
+"unencrypted_ebs_volumes": unencrypted_ebs_volumes,
 
     "security_groups": [
         sg["GroupId"]
