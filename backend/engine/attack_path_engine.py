@@ -1,102 +1,59 @@
-from engine.attack_path import AttackPath
+"""Deterministic correlation of normalized findings into attack paths.
+
+This module intentionally has no AWS SDK imports or service calls. It only
+correlates findings supplied by the rule engine or finding aggregator.
+"""
+
+from collections.abc import Mapping
+
+from engine.attack_rules import ATTACK_RULES
+
+
+class AttackContext:
+    """Read-only indexes over finding dictionaries or Finding dataclasses."""
+
+    def __init__(self, findings):
+        self.findings = list(findings or [])
+        self.by_rule_id = {}
+        self.by_correlation_tag = {}
+
+        for finding in self.findings:
+            rule_id = self._value(finding, "rule_id")
+            if rule_id:
+                self.by_rule_id.setdefault(rule_id, []).append(finding)
+
+            for tag in self._value(finding, "correlation_tags", []) or []:
+                self.by_correlation_tag.setdefault(tag, []).append(finding)
+
+    @staticmethod
+    def _value(finding, name, default=None):
+        if isinstance(finding, Mapping):
+            return finding.get(name, default)
+        return getattr(finding, name, default)
+
+    def has(self, rule_id):
+        return rule_id in self.by_rule_id
+
+    def has_any(self, rule_ids):
+        return any(self.has(rule_id) for rule_id in rule_ids)
+
+    def has_tag(self, tag):
+        """Reserved for future tag-driven attack rules."""
+        return tag in self.by_correlation_tag
+
+    def related(self, rule_ids):
+        """Return present rule IDs in a stable order for attack-path evidence."""
+        return [rule_id for rule_id in rule_ids if self.has(rule_id)]
 
 
 def analyze_attack_paths(findings):
+    """Return AttackPath objects created by the registered deterministic rules."""
+    context = AttackContext(findings)
+    paths = []
 
-    attack_paths = []
+    for rule in ATTACK_RULES:
+        attack_path = rule(context)
+        if attack_path:
+            paths.append(attack_path)
 
-    rule_ids = {
-        finding["rule_id"]
-        for finding in findings
-    }
-
-    # AP001 - Credential Theft
-    if "IAM002" in rule_ids:
-
-        attack_paths.append(
-
-            AttackPath(
-
-                attack_id="AP001",
-
-                title="Credential Theft Attack",
-
-                risk="High",
-
-                description="IAM users without MFA are vulnerable to credential theft attacks.",
-
-                likelihood="High",
-
-                impact="High",
-
-                related_findings=[
-                    "IAM002"
-                ],
-
-                mitigation="Enable MFA for all IAM users."
-
-            ).to_dict()
-
-        )
-
-    # AP002 - Public Data Exposure
-    if "S3001" in rule_ids:
-
-        attack_paths.append(
-
-            AttackPath(
-
-                attack_id="AP002",
-
-                title="Public Data Exposure",
-
-                risk="Critical",
-
-                description="An S3 bucket without Block Public Access may expose sensitive information.",
-
-                likelihood="Medium",
-
-                impact="Critical",
-
-                related_findings=[
-                    "S3001",
-                    "S3002"
-                ],
-
-                mitigation="Enable Block Public Access and Versioning."
-
-            ).to_dict()
-
-        )
-
-    # AP003 - Stealth Credential Compromise
-    if "IAM002" in rule_ids and "CT001" in rule_ids:
-
-        attack_paths.append(
-
-            AttackPath(
-
-                attack_id="AP003",
-
-                title="Stealth Credential Compromise",
-
-                risk="Critical",
-
-                description="An attacker can compromise an IAM account without MFA while remaining difficult to detect because CloudTrail is not configured.",
-
-                likelihood="High",
-
-                impact="Critical",
-
-                related_findings=[
-                    "IAM002",
-                    "CT001"
-                ],
-
-                mitigation="Enable MFA and configure CloudTrail."
-
-            ).to_dict()
-
-        )
-
-    return attack_paths
+    return paths

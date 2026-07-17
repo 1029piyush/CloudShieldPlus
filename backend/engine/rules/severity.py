@@ -179,6 +179,34 @@ RULE_PROFILES = {
         "confidence": 10
     },
 
+    "SG003": {
+        "business_impact": 10,
+        "exploitability": 9,
+        "exposure": 10,
+        "confidence": 10
+    },
+
+    "SG004": {
+        "business_impact": 10,
+        "exploitability": 10,
+        "exposure": 10,
+        "confidence": 10
+    },
+
+    "SG005": {
+        "business_impact": 9,
+        "exploitability": 8,
+        "exposure": 9,
+        "confidence": 10
+    },
+
+    "SG006": {
+        "business_impact": 7,
+        "exploitability": 6,
+        "exposure": 6,
+        "confidence": 10
+    },
+
     # ================= CloudTrail =================
 
     "CT001": {
@@ -190,17 +218,108 @@ RULE_PROFILES = {
 
     "CT002": {
         "business_impact": 8,
-        "exploitability": 5,
+        "exploitability": 8,
+        "exposure": 8,
+        "confidence": 10
+    },
+
+    "CT003": {
+        "business_impact": 9,
+        "exploitability": 7,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "CT004": {
+        "business_impact": 8,
+        "exploitability": 7,
+        "exposure": 6,
+        "confidence": 10
+    },
+
+    "CT005": {
+        "business_impact": 7,
+        "exploitability": 6,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "CT006": {
+        "business_impact": 6,
+        "exploitability": 4,
         "exposure": 4,
+        "confidence": 10
+    },
+
+    "CT007": {
+        "business_impact": 7,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "CT008": {
+        "business_impact": 7,
+        "exploitability": 5,
+        "exposure": 5,
         "confidence": 10
     },
 
     # ================= Password Policy =================
 
     "PP001": {
-        "business_impact": 8,
-        "exploitability": 7,
+        "business_impact": 9,
+        "exploitability": 8,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "PP002": {
+        "business_impact": 7,
+        "exploitability": 6,
         "exposure": 6,
+        "confidence": 10
+    },
+
+    "PP003": {
+        "business_impact": 6,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "PP004": {
+        "business_impact": 6,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "PP005": {
+        "business_impact": 6,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "PP006": {
+        "business_impact": 6,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "PP007": {
+        "business_impact": 5,
+        "exploitability": 4,
+        "exposure": 4,
+        "confidence": 10
+    },
+
+    "PP008": {
+        "business_impact": 5,
+        "exploitability": 4,
+        "exposure": 4,
         "confidence": 10
     }
 

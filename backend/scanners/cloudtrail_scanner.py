@@ -27,11 +27,20 @@ def get_event_selectors(client, trail_name):
             TrailName=trail_name
         )
 
-        return response.get("EventSelectors", [])
+        return {
+            "event_selectors": response.get("EventSelectors", []),
+            "advanced_event_selectors": response.get(
+                "AdvancedEventSelectors",
+                []
+            ),
+        }
 
     except ClientError:
 
-        return []
+        return {
+            "event_selectors": [],
+            "advanced_event_selectors": [],
+        }
 
 
 def get_insight_selectors(client, trail_name):
@@ -78,6 +87,11 @@ def discover_cloudtrail():
 
     for trail in trails:
 
+        event_selectors = get_event_selectors(
+            cloudtrail,
+            trail.get("Name")
+        )
+
         resources.append({
 
             "name": trail.get("Name"),
@@ -121,11 +135,11 @@ def discover_cloudtrail():
             "sns_topic":
                 trail.get("SnsTopicARN"),
 
-            "event_selectors":
-                get_event_selectors(
-                    cloudtrail,
-                    trail.get("Name")
-                ),
+            "event_selectors": event_selectors["event_selectors"],
+
+            "advanced_event_selectors": event_selectors[
+                "advanced_event_selectors"
+            ],
 
             "insight_selectors":
                 get_insight_selectors(
