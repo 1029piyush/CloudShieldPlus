@@ -86,13 +86,30 @@ def get_bucket_acl(s3, bucket_name):
     try:
         acl = s3.get_bucket_acl(Bucket=bucket_name)
 
-        return [
-            grant["Permission"]
-            for grant in acl["Grants"]
-        ]
+        permissions = []
+        public_permissions = []
+
+        for grant in acl["Grants"]:
+            permission = grant["Permission"]
+            permissions.append(permission)
+
+            grantee = grant.get("Grantee", {})
+            if grantee.get("URI") in {
+                "http://acs.amazonaws.com/groups/global/AllUsers",
+                "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+            }:
+                public_permissions.append(permission)
+
+        return {
+            "permissions": permissions,
+            "public_permissions": public_permissions,
+        }
 
     except Exception:
-        return []
+        return {
+            "permissions": [],
+            "public_permissions": [],
+        }
 
 
 def get_bucket_logging(s3, bucket_name):
@@ -174,6 +191,7 @@ def discover_s3():
         versioning = get_bucket_versioning(s3, name)
         encryption = get_bucket_encryption(s3, name)
         public_access = get_public_access_block(s3, name)
+        acl = get_bucket_acl(s3, name)
 
         resources.append({
 
@@ -201,7 +219,9 @@ def discover_s3():
 
             "bucket_policy": get_bucket_policy(s3, name),
 
-            "acl_permissions": get_bucket_acl(s3, name),
+            "acl_permissions": acl["permissions"],
+
+            "public_acl_permissions": acl["public_permissions"],
 
             "logging_enabled": get_bucket_logging(s3, name),
 

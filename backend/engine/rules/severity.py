@@ -63,6 +63,48 @@ RULE_PROFILES = {
         "confidence": 10
     },
 
+    "S3004": {
+        "business_impact": 6,
+        "exploitability": 4,
+        "exposure": 4,
+        "confidence": 9
+    },
+
+    "S3005": {
+        "business_impact": 7,
+        "exploitability": 5,
+        "exposure": 4,
+        "confidence": 8
+    },
+
+    "S3006": {
+        "business_impact": 7,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "S3007": {
+        "business_impact": 8,
+        "exploitability": 6,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "S3008": {
+        "business_impact": 10,
+        "exploitability": 9,
+        "exposure": 10,
+        "confidence": 10
+    },
+
+    "S3009": {
+        "business_impact": 9,
+        "exploitability": 8,
+        "exposure": 9,
+        "confidence": 10
+    },
+
     # ================= EC2 =================
 
     "EC2001": {
