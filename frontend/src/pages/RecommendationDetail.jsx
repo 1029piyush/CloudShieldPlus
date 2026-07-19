@@ -9,12 +9,14 @@ import {
     TrendingDown,
     ArrowRight,
     CheckCircle,
+    AlertTriangle,
 } from "lucide-react";
 
 function RecommendationDetail({ selectedAccountId }) {
     const { recommendationId } = useParams();
     const [rec, setRec] = useState(null);
     const [attackPaths, setAttackPaths] = useState([]);
+    const [findings, setFindings] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Auto-fix simulation states
@@ -27,9 +29,10 @@ function RecommendationDetail({ selectedAccountId }) {
             if (!selectedAccountId) return;
             setLoading(true);
             try {
-                const [recsRes, pathsRes] = await Promise.all([
+                const [recsRes, pathsRes, findingsRes] = await Promise.all([
                     api.get("/recommendations", { params: { aws_account_id: selectedAccountId } }),
                     api.get("/attack-paths", { params: { aws_account_id: selectedAccountId } }),
+                    api.get("/findings", { params: { aws_account_id: selectedAccountId } }),
                 ]);
 
                 if (active) {
@@ -38,6 +41,7 @@ function RecommendationDetail({ selectedAccountId }) {
                     );
                     setRec(foundRec);
                     setAttackPaths(pathsRes.data.attack_paths || []);
+                    setFindings(findingsRes.data.findings || []);
                 }
             } catch (err) {
                 console.error(err);
@@ -89,6 +93,10 @@ function RecommendationDetail({ selectedAccountId }) {
     const mitigatedIds = new Set(rec.related_attack_paths || []);
     const matchingAttackPaths = attackPaths.filter((ap) => mitigatedIds.has(ap.attack_id));
 
+    // Filter contributing findings related to this recommendation
+    const relatedRuleIds = new Set(rec.related_findings || []);
+    const matchingFindings = findings.filter((f) => relatedRuleIds.has(f.rule_id));
+
     return (
         <div style={{ padding: "30px", color: "#F1F5F9", fontFamily: "Inter, sans-serif" }}>
             {/* Header */}
@@ -102,43 +110,68 @@ function RecommendationDetail({ selectedAccountId }) {
                             Remediation Advisory: {rec.title}
                         </h1>
                         <p style={{ fontSize: "14px", color: "#94A3B8", marginTop: "4px" }}>
-                            Priority: {rec.priority} | Category: {rec.category}
+                            Priority: <strong style={{ color: rec.priority === "Critical" ? "#EF4444" : "#F59E0B" }}>{rec.priority}</strong> | Category: {rec.category}
                         </p>
                     </div>
                 </div>
 
-                {rec.auto_fix_supported && (
-                    <div>
-                        {fixed ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#064E3B", color: "#A7F3D0", padding: "10px 18px", borderRadius: "6px", fontSize: "14px", fontWeight: "600" }}>
-                                <CheckCircle size={16} /> Remediation Completed!
-                            </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                    {/* Auto Fix Label */}
+                    <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        padding: "8px 16px",
+                        borderRadius: "6px",
+                        backgroundColor: rec.auto_fix_supported ? "#064E3B" : "#1E293B",
+                        color: rec.auto_fix_supported ? "#10B981" : "#94A3B8",
+                        border: rec.auto_fix_supported ? "none" : "1px solid #334155"
+                    }}>
+                        {rec.auto_fix_supported ? (
+                            <>
+                                <Zap size={14} fill="#10B981" />
+                                Auto Fix Available
+                            </>
                         ) : (
-                            <button
-                                onClick={handleRunAutoFix}
-                                disabled={fixing}
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                    padding: "10px 18px",
-                                    backgroundColor: "#10B981",
-                                    color: "#0F172A",
-                                    border: "none",
-                                    borderRadius: "6px",
-                                    fontSize: "14px",
-                                    fontWeight: "600",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s",
-                                }}
-                                onMouseEnter={(e) => (e.target.style.backgroundColor = "#34D399")}
-                                onMouseLeave={(e) => (e.target.style.backgroundColor = "#10B981")}
-                            >
-                                <Zap size={16} /> {fixing ? "Executing auto-fix scripts..." : "Run Auto-Remediation"}
-                            </button>
+                            "Manual Action Required"
                         )}
-                    </div>
-                )}
+                    </span>
+
+                    {rec.auto_fix_supported && (
+                        <div>
+                            {fixed ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#064E3B", color: "#A7F3D0", padding: "10px 18px", borderRadius: "6px", fontSize: "14px", fontWeight: "600" }}>
+                                    <CheckCircle size={16} /> Remediation Completed!
+                                </span>
+                            ) : (
+                                <button
+                                    onClick={handleRunAutoFix}
+                                    disabled={fixing}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                        padding: "10px 18px",
+                                        backgroundColor: "#10B981",
+                                        color: "#0F172A",
+                                        border: "none",
+                                        borderRadius: "6px",
+                                        fontSize: "14px",
+                                        fontWeight: "600",
+                                        cursor: "pointer",
+                                        transition: "all 0.2s",
+                                    }}
+                                    onMouseEnter={(e) => (e.target.style.backgroundColor = "#34D399")}
+                                    onMouseLeave={(e) => (e.target.style.backgroundColor = "#10B981")}
+                                >
+                                    <Zap size={16} /> {fixing ? "Executing auto-fix scripts..." : "Run Auto-Remediation"}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "30px", alignItems: "start" }}>
@@ -154,7 +187,7 @@ function RecommendationDetail({ selectedAccountId }) {
                                 Estimated Effort: <strong>{rec.estimated_effort}</strong>
                             </div>
                             <div style={{ fontSize: "13px", color: "#F1F5F9", backgroundColor: "#1E293B", padding: "8px 14px", borderRadius: "6px" }}>
-                                Risk Mitigation: <strong>{rec.expected_risk_reduction}</strong>
+                                Expected Risk Reduction: <strong>{rec.expected_risk_reduction}</strong>
                             </div>
                         </div>
                     </div>
@@ -199,7 +232,7 @@ function RecommendationDetail({ selectedAccountId }) {
                     </div>
                 </div>
 
-                {/* Right Panel: Affected Resources & Mitigated paths */}
+                {/* Right Panel: Affected Resources, Findings, & Mitigated paths */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
                     {/* Affected Resources */}
                     <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
@@ -212,6 +245,24 @@ function RecommendationDetail({ selectedAccountId }) {
                                     {res}
                                 </div>
                             )) || <div style={{ color: "#94A3B8" }}>No affected resources.</div>}
+                        </div>
+                    </div>
+
+                    {/* Related Findings */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <AlertTriangle size={16} style={{ color: "#F59E0B" }} /> Contributing Vulnerabilities ({matchingFindings.length})
+                        </h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {matchingFindings.map((f) => (
+                                <div key={f.id} style={{ backgroundColor: "#1E293B", padding: "12px", borderRadius: "6px" }}>
+                                    <h4 style={{ fontSize: "13px", color: "white", margin: "0 0 4px 0", fontWeight: "600" }}>{f.title}</h4>
+                                    <span style={{ fontSize: "11px", color: "#94A3B8" }}>Resource: {f.resource}</span>
+                                </div>
+                            ))}
+                            {matchingFindings.length === 0 && (
+                                <div style={{ color: "#94A3B8", fontSize: "13px" }}>No related findings.</div>
+                            )}
                         </div>
                     </div>
 

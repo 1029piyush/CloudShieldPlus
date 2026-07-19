@@ -9,42 +9,35 @@ import {
     AlertTriangle,
     Eye,
     TrendingUp,
-    CheckCircle2,
-    XCircle,
+    Bookmark,
+    Database,
+    Shield,
 } from "lucide-react";
 
 function Dashboard({ selectedAccountId }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        let active = true;
-        const loadDashboard = async () => {
-            if (!selectedAccountId) {
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            try {
-                const res = await api.get(`/dashboard`, {
-                    params: { aws_account_id: selectedAccountId },
-                });
-                if (active) {
-                    setData(res.data);
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                if (active) {
-                    setLoading(false);
-                }
-            }
-        };
+    const loadDashboard = async () => {
+        if (!selectedAccountId) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await api.get(`/dashboard`, {
+                params: { aws_account_id: selectedAccountId },
+            });
+            setData(res.data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         loadDashboard();
-        return () => {
-            active = false;
-        };
     }, [selectedAccountId]);
 
     if (loading) {
@@ -59,7 +52,7 @@ function Dashboard({ selectedAccountId }) {
         return (
             <div style={{ textAlign: "center", padding: "100px 20px", color: "#94A3B8" }}>
                 <ShieldAlert size={48} style={{ color: "#F43F5E", marginBottom: "20px" }} />
-                <h2>No Active Environment</h2>
+                <h2>No Connected AWS Environment</h2>
                 <p style={{ marginTop: "10px" }}>
                     Please select or connect an AWS account in the AWS Accounts tab to begin scanning.
                 </p>
@@ -84,17 +77,12 @@ function Dashboard({ selectedAccountId }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
                 <div>
                     <h1 style={{ fontSize: "28px", fontWeight: "700", color: "white", margin: 0 }}>
-                        Security Advisory Dashboard
+                        Dashboard Overview
                     </h1>
                     <p style={{ fontSize: "14px", color: "#94A3B8", marginTop: "4px" }}>
-                        Real-time threat scenarios and remediation steps based on verified evidence
+                        Intelligent Cloud Security Advisor
                     </p>
                 </div>
-                {hasLatestScan && (
-                    <div style={{ fontSize: "13px", color: "#94A3B8", backgroundColor: "#1E293B", padding: "8px 14px", borderRadius: "6px", border: "1px solid #334155" }}>
-                        Last scan: {new Date(summary.last_scan).toLocaleString()} ({summary.scan_duration?.toFixed(1)}s)
-                    </div>
-                )}
             </div>
 
             {!hasLatestScan ? (
@@ -102,40 +90,17 @@ function Dashboard({ selectedAccountId }) {
                     <Activity size={36} style={{ color: "#38BDF8", marginBottom: "15px" }} />
                     <h3>No Scan History Detected</h3>
                     <p style={{ marginTop: "8px" }}>
-                        Run your first security scan in the <strong>Scan History</strong> tab to generate your advisory profile.
+                        Run your first security scan in the <strong>Scans</strong> tab to generate your advisory profile.
                     </p>
                 </div>
             ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "30px" }}>
-                    {/* Summary Counters */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", padding: "20px", borderRadius: "8px" }}>
-                            <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Discovered Resources</div>
-                            <div style={{ fontSize: "28px", fontWeight: "bold", color: "white", marginTop: "8px" }}>{summary.resources}</div>
-                        </div>
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", padding: "20px", borderRadius: "8px" }}>
-                            <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Active Services</div>
-                            <div style={{ fontSize: "28px", fontWeight: "bold", color: "white", marginTop: "8px" }}>{summary.services}</div>
-                        </div>
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", padding: "20px", borderRadius: "8px" }}>
-                            <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Total Findings</div>
-                            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#38BDF8", marginTop: "8px" }}>{summary.findings}</div>
-                        </div>
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", padding: "20px", borderRadius: "8px" }}>
-                            <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Critical Risks</div>
-                            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#EF4444", marginTop: "8px" }}>{summary.critical_findings}</div>
-                        </div>
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", padding: "20px", borderRadius: "8px" }}>
-                            <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Attack Paths</div>
-                            <div style={{ fontSize: "28px", fontWeight: "bold", color: "#F59E0B", marginTop: "8px" }}>{summary.attack_paths}</div>
-                        </div>
-                    </div>
-
-                    {/* 1. Hero Attack Path Section */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+                    
+                    {/* 1. HERO ATTACK PATH */}
                     <div style={{ backgroundColor: "#0F172A", border: "1px solid #E11D48", borderRadius: "10px", padding: "25px", boxShadow: "0 4px 20px rgba(225, 29, 72, 0.15)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#E11D48", fontWeight: "bold", fontSize: "14px", textTransform: "uppercase", marginBottom: "15px" }}>
                             <ShieldAlert size={20} />
-                            Critical Path Advisory
+                            Critical Path Advisory (Highest Severity Attack Scenario)
                         </div>
                         {hero_attack && hero_attack.title ? (
                             <div>
@@ -165,114 +130,161 @@ function Dashboard({ selectedAccountId }) {
                         )}
                     </div>
 
-                    {/* 2. Top Recommendations & Discovered Services Grid */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "30px" }}>
-                        {/* Top Recommendations */}
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                            <h3 style={{ fontSize: "18px", color: "white", margin: "0 0 15px 0", borderBottom: "1px solid #1E293B", paddingBottom: "10px" }}>
-                                Priority Remediation Tasks
-                            </h3>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                                {top_recommendations.length > 0 ? (
-                                    top_recommendations.map((rec) => (
-                                        <div key={rec.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", backgroundColor: "#1E293B", padding: "14px", borderRadius: "6px" }}>
-                                            <div>
-                                                <Link to={`/recommendations/${rec.id}`} style={{ textDecoration: "none" }}>
-                                                    <h4 style={{ fontSize: "14px", color: "#38BDF8", margin: "0 0 6px 0", fontWeight: "600" }}>{rec.title}</h4>
-                                                </Link>
-                                                <span style={{ fontSize: "11px", color: "#94A3B8", display: "inline-block", marginRight: "10px" }}>
-                                                    Category: {rec.category}
-                                                </span>
-                                                <span style={{ fontSize: "11px", color: rec.priority === "Critical" ? "#EF4444" : "#F59E0B" }}>
-                                                    Priority: {rec.priority}
-                                                </span>
-                                            </div>
-                                            {rec.auto_fix_supported && (
-                                                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#10B981", backgroundColor: "#064E3B", padding: "4px 8px", borderRadius: "4px", fontWeight: "600" }}>
-                                                    <Zap size={10} /> Auto-Fix
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div style={{ color: "#94A3B8" }}>No active remediation actions required.</div>
-                                )}
+                    {/* 2. ENVIRONMENT SUMMARY */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Database size={16} style={{ color: "#38BDF8" }} /> Environment Summary
+                        </h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+                            <div style={{ backgroundColor: "#1E293B", padding: "20px", borderRadius: "8px", border: "1px solid #334155" }}>
+                                <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Resources Scanned</div>
+                                <div style={{ fontSize: "28px", fontWeight: "bold", color: "white", marginTop: "8px" }}>{summary.resources}</div>
+                            </div>
+                            <div style={{ backgroundColor: "#1E293B", padding: "20px", borderRadius: "8px", border: "1px solid #334155" }}>
+                                <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Discovered Services</div>
+                                <div style={{ fontSize: "28px", fontWeight: "bold", color: "white", marginTop: "8px" }}>{summary.services}</div>
+                            </div>
+                            <div style={{ backgroundColor: "#1E293B", padding: "20px", borderRadius: "8px", border: "1px solid #334155" }}>
+                                <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Critical Findings</div>
+                                <div style={{ fontSize: "28px", fontWeight: "bold", color: "#EF4444", marginTop: "8px" }}>{summary.critical_findings}</div>
+                            </div>
+                            <div style={{ backgroundColor: "#1E293B", padding: "20px", borderRadius: "8px", border: "1px solid #334155" }}>
+                                <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Active Attack Paths</div>
+                                <div style={{ fontSize: "28px", fontWeight: "bold", color: "#F59E0B", marginTop: "8px" }}>{summary.attack_paths}</div>
+                            </div>
+                            <div style={{ backgroundColor: "#1E293B", padding: "20px", borderRadius: "8px", border: "1px solid #334155", gridColumn: "span 2" }}>
+                                <div style={{ fontSize: "12px", color: "#94A3B8", fontWeight: "bold", textTransform: "uppercase" }}>Telemetry Logs</div>
+                                <div style={{ display: "flex", gap: "20px", marginTop: "12px", fontSize: "13px" }}>
+                                    <div>Last Scan: <strong style={{ color: "white" }}>{new Date(summary.last_scan).toLocaleString()}</strong></div>
+                                    <div>Duration: <strong style={{ color: "white" }}>{summary.scan_duration?.toFixed(1)}s</strong></div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Discovered AWS Services */}
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                            <h3 style={{ fontSize: "18px", color: "white", margin: "0 0 15px 0", borderBottom: "1px solid #1E293B", paddingBottom: "10px" }}>
-                                Discovered Workloads
-                            </h3>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                                {services.map((service) => (
-                                    <Link key={service} to={`/services/${service.toLowerCase()}`} style={{ textDecoration: "none" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", backgroundColor: "#1E293B", border: "1px solid #334155", padding: "12px 18px", borderRadius: "6px", color: "white", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}>
-                                            <Cpu size={16} style={{ color: "#38BDF8" }} />
-                                            {service.toUpperCase()}
+                    {/* 3. TOP RECOMMENDATIONS */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Bookmark size={16} style={{ color: "#38BDF8" }} /> Top Recommendations
+                        </h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            {top_recommendations.length > 0 ? (
+                                top_recommendations.map((rec) => (
+                                    <div key={rec.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#1E293B", padding: "14px 20px", borderRadius: "6px", border: "1px solid #334155" }}>
+                                        <div>
+                                            <Link to={`/recommendations/${rec.id}`} style={{ textDecoration: "none" }}>
+                                                <h4 style={{ fontSize: "14px", color: "#38BDF8", margin: "0 0 4px 0", fontWeight: "600" }}>{rec.title}</h4>
+                                            </Link>
+                                            <div style={{ fontSize: "11px", color: "#94A3B8" }}>
+                                                Category: <span style={{ color: "white", marginRight: "15px" }}>{rec.category}</span>
+                                                Priority: <span style={{ color: rec.priority === "Critical" ? "#EF4444" : "#F59E0B", fontWeight: "bold" }}>{rec.priority}</span>
+                                            </div>
+                                        </div>
+                                        <span style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "4px",
+                                            fontSize: "11px",
+                                            fontWeight: "bold",
+                                            padding: "4px 8px",
+                                            borderRadius: "4px",
+                                            backgroundColor: rec.auto_fix_supported ? "#064E3B" : "#1E293B",
+                                            color: rec.auto_fix_supported ? "#10B981" : "#94A3B8",
+                                            border: rec.auto_fix_supported ? "none" : "1px solid #334155"
+                                        }}>
+                                            {rec.auto_fix_supported ? (
+                                                <>
+                                                    <Zap size={10} /> Auto Fix Available
+                                                </>
+                                            ) : (
+                                                "Manual Action Required"
+                                            )}
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ color: "#94A3B8", fontSize: "13px" }}>No active remediation actions required.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 4. ATTACK PATHS */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Shield size={16} style={{ color: "#EF4444" }} /> Exploit Attack Paths
+                        </h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "15px" }}>
+                            {data?.attack_paths?.length > 0 ? (
+                                data.attack_paths.map((ap) => (
+                                    <Link key={ap.id} to={`/attack-paths/${ap.id}`} style={{ textDecoration: "none" }}>
+                                        <div style={{ backgroundColor: "#1E293B", padding: "16px", borderRadius: "6px", border: "1px solid #334155", borderLeft: "4px solid #EF4444", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" }}>
+                                            <div>
+                                                <h4 style={{ fontSize: "14px", color: "white", margin: "0 0 6px 0", fontWeight: "600" }}>{ap.title}</h4>
+                                                <p style={{ fontSize: "12px", color: "#94A3B8", margin: "0 0 12px 0", lineHeight: "1.4" }}>{ap.description.substring(0, 100)}...</p>
+                                            </div>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+                                                <span style={{ color: "#EF4444", fontWeight: "bold" }}>Risk Level: {ap.risk}</span>
+                                                <span style={{ color: "#38BDF8", display: "flex", alignItems: "center", gap: "2px" }}>
+                                                    Analyze <Eye size={12} />
+                                                </span>
+                                            </div>
                                         </div>
                                     </Link>
-                                ))}
-                            </div>
+                                ))
+                            ) : (
+                                <div style={{ color: "#94A3B8", fontSize: "13px" }}>No active attack paths identified.</div>
+                            )}
                         </div>
                     </div>
 
-                    {/* 3. Attack Paths & Recent Findings Grid */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "30px" }}>
-                        {/* Attack Paths List */}
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                            <h3 style={{ fontSize: "18px", color: "white", margin: "0 0 15px 0", borderBottom: "1px solid #1E293B", paddingBottom: "10px" }}>
-                                Exploit Attack Paths
-                            </h3>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                {data?.attack_paths?.length > 0 ? (
-                                    data.attack_paths.map((ap) => (
-                                        <Link key={ap.id} to={`/attack-paths/${ap.id}`} style={{ textDecoration: "none" }}>
-                                            <div style={{ backgroundColor: "#1E293B", padding: "14px", borderRadius: "6px", borderLeft: "4px solid #EF4444", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                <div>
-                                                    <h4 style={{ fontSize: "14px", color: "white", margin: "0 0 4px 0", fontWeight: "600" }}>{ap.title}</h4>
-                                                    <span style={{ fontSize: "11px", color: "#94A3B8" }}>Risk Level: {ap.risk}</span>
-                                                </div>
-                                                <span style={{ fontSize: "12px", color: "#38BDF8", display: "flex", alignItems: "center", gap: "4px" }}>
-                                                    Inspect <Eye size={12} />
-                                                </span>
-                                            </div>
-                                        </Link>
-                                    ))
-                                ) : (
-                                    <div style={{ color: "#94A3B8" }}>No active attack paths identified.</div>
-                                )}
-                            </div>
+                    {/* 5. DETECTED AWS SERVICES */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Cpu size={16} style={{ color: "#38BDF8" }} /> Discovered AWS Workloads
+                        </h3>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                            {services.map((service) => (
+                                <Link key={service} to={`/services/${service.toLowerCase()}`} style={{ textDecoration: "none" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px", backgroundColor: "#1E293B", border: "1px solid #334155", padding: "12px 18px", borderRadius: "6px", color: "white", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}>
+                                        <Cpu size={16} style={{ color: "#38BDF8" }} />
+                                        {service.toUpperCase()}
+                                    </div>
+                                </Link>
+                            ))}
                         </div>
+                    </div>
 
-                        {/* Recent Findings */}
-                        <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                            <h3 style={{ fontSize: "18px", color: "white", margin: "0 0 15px 0", borderBottom: "1px solid #1E293B", paddingBottom: "10px" }}>
-                                Recent Findings
-                            </h3>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                {recent_findings.length > 0 ? (
-                                    recent_findings.map((f) => (
-                                        <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#1E293B", padding: "12px", borderRadius: "6px" }}>
-                                            <AlertTriangle size={16} style={{ color: f.severity === "Critical" ? "#EF4444" : "#F59E0B" }} />
-                                            <div style={{ flex: 1 }}>
-                                                <h4 style={{ fontSize: "13px", color: "white", margin: "0 0 2px 0", fontWeight: "600" }}>{f.title}</h4>
-                                                <span style={{ fontSize: "10px", color: "#94A3B8", marginRight: "10px" }}>Resource: {f.resource}</span>
-                                                <span style={{ fontSize: "10px", color: "#38BDF8" }}>Service: {f.service}</span>
+                    {/* 6. RECENT FINDINGS */}
+                    <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <AlertTriangle size={16} style={{ color: "#F59E0B" }} /> Recent Security Findings
+                        </h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {recent_findings.length > 0 ? (
+                                recent_findings.map((f) => (
+                                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#1E293B", border: "1px solid #334155", padding: "14px 20px", borderRadius: "6px" }}>
+                                        <AlertTriangle size={16} style={{ color: f.severity === "Critical" ? "#EF4444" : "#F59E0B" }} />
+                                        <div style={{ flex: 1 }}>
+                                            <h4 style={{ fontSize: "13px", color: "white", margin: "0 0 2px 0", fontWeight: "600" }}>{f.title}</h4>
+                                            <div style={{ fontSize: "11px", color: "#94A3B8" }}>
+                                                Resource: <span style={{ color: "#CBD5E1", marginRight: "15px" }}>{f.resource}</span>
+                                                Service: <span style={{ color: "#38BDF8" }}>{f.service}</span>
                                             </div>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div style={{ color: "#94A3B8" }}>No recent findings available.</div>
-                                )}
-                            </div>
+                                        <span style={{ fontSize: "11px", fontWeight: "bold", color: f.severity === "Critical" ? "#EF4444" : "#F59E0B" }}>
+                                            {f.severity}
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ color: "#94A3B8", fontSize: "13px" }}>No recent findings available.</div>
+                            )}
                         </div>
                     </div>
 
-                    {/* 4. Scan History Section */}
+                    {/* 7. SCAN HISTORY */}
                     <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                        <h3 style={{ fontSize: "18px", color: "white", margin: "0 0 15px 0", borderBottom: "1px solid #1E293B", paddingBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
                             <TrendingUp size={18} style={{ color: "#38BDF8" }} /> Scan Trend History
                         </h3>
                         <div style={{ overflowX: "auto" }}>
@@ -289,7 +301,7 @@ function Dashboard({ selectedAccountId }) {
                                 </thead>
                                 <tbody>
                                     {scan_history.map((s) => (
-                                        <tr key={s.id} style={{ borderBottom: "1px solid #1E293B", hover: { backgroundColor: "#1E293B" } }}>
+                                        <tr key={s.id} style={{ borderBottom: "1px solid #1E293B" }}>
                                             <td style={{ padding: "12px 10px", color: "white" }}>{new Date(s.scan_time).toLocaleString()}</td>
                                             <td style={{ padding: "12px 10px", color: "#94A3B8" }}>{s.account_name}</td>
                                             <td style={{ padding: "12px 10px", fontWeight: "bold" }}>{s.findings_count}</td>

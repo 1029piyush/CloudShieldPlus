@@ -10,10 +10,14 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import AWSAccounts from "./pages/AWSAccounts";
-import Scans from "./pages/Scans";
-import ServiceDetail from "./pages/ServiceDetail";
+import AttackPaths from "./pages/AttackPaths";
 import AttackPathDetail from "./pages/AttackPathDetail";
+import Recommendations from "./pages/Recommendations";
 import RecommendationDetail from "./pages/RecommendationDetail";
+import Scans from "./pages/Scans";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import ServiceDetail from "./pages/ServiceDetail";
 
 // Main Layout Wrapper
 function MainLayout({
@@ -21,6 +25,10 @@ function MainLayout({
     selectedAccountId,
     onAccountChange,
     services,
+    lastScanTime,
+    scanStatus,
+    onRunScan,
+    scanning,
 }) {
     const isAuthenticated = localStorage.getItem("token") !== null;
 
@@ -35,6 +43,10 @@ function MainLayout({
                 accounts={accounts}
                 selectedAccountId={selectedAccountId}
                 onAccountChange={onAccountChange}
+                lastScanTime={lastScanTime}
+                scanStatus={scanStatus}
+                onRunScan={onRunScan}
+                scanning={scanning}
             />
             <div
                 style={{
@@ -53,6 +65,12 @@ function App() {
     const [accounts, setAccounts] = useState([]);
     const [selectedAccountId, setSelectedAccountId] = useState(null);
     const [services, setServices] = useState([]);
+    const [scanning, setScanning] = useState(false);
+
+    // Derived states from selected account
+    const activeAccount = accounts.find((a) => a.id === selectedAccountId);
+    const lastScanTime = activeAccount ? activeAccount.last_scan_time : null;
+    const scanStatus = scanning ? "Running" : (activeAccount ? activeAccount.last_scan_status : "Never Scanned");
 
     const loadAccounts = async () => {
         const token = localStorage.getItem("token");
@@ -63,7 +81,6 @@ function App() {
             const accList = res.data.accounts || [];
             setAccounts(accList);
 
-            // Default to first account or restore selected ID
             if (accList.length > 0) {
                 const saved = sessionStorage.getItem("selectedAccountId");
                 const matched = accList.find((a) => String(a.id) === saved);
@@ -97,6 +114,20 @@ function App() {
         }
     };
 
+    const handleRunScan = async () => {
+        if (!selectedAccountId) return;
+        setScanning(true);
+        try {
+            await api.post("/scans", { aws_account_id: selectedAccountId });
+            await loadAccounts();
+            await loadServices();
+        } catch (err) {
+            alert(err.response?.data?.message || "Scan failed.");
+        } finally {
+            setScanning(false);
+        }
+    };
+
     useEffect(() => {
         loadAccounts();
     }, []);
@@ -115,6 +146,7 @@ function App() {
     };
 
     const handleScanCompleted = () => {
+        loadAccounts();
         loadServices();
     };
 
@@ -132,6 +164,10 @@ function App() {
                             selectedAccountId={selectedAccountId}
                             onAccountChange={handleAccountChange}
                             services={services}
+                            lastScanTime={lastScanTime}
+                            scanStatus={scanStatus}
+                            onRunScan={handleRunScan}
+                            scanning={scanning}
                         />
                     }
                 >
@@ -145,6 +181,22 @@ function App() {
                         element={<AWSAccounts onAccountsUpdated={handleAccountsUpdated} />}
                     />
                     <Route
+                        path="/attack-paths"
+                        element={<AttackPaths selectedAccountId={selectedAccountId} />}
+                    />
+                    <Route
+                        path="/attack-paths/:attackId"
+                        element={<AttackPathDetail selectedAccountId={selectedAccountId} />}
+                    />
+                    <Route
+                        path="/recommendations"
+                        element={<Recommendations selectedAccountId={selectedAccountId} />}
+                    />
+                    <Route
+                        path="/recommendations/:recommendationId"
+                        element={<RecommendationDetail selectedAccountId={selectedAccountId} />}
+                    />
+                    <Route
                         path="/scans"
                         element={
                             <Scans
@@ -154,16 +206,13 @@ function App() {
                         }
                     />
                     <Route
+                        path="/reports"
+                        element={<Reports selectedAccountId={selectedAccountId} />}
+                    />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route
                         path="/services/:serviceName"
                         element={<ServiceDetail selectedAccountId={selectedAccountId} />}
-                    />
-                    <Route
-                        path="/attack-paths/:attackId"
-                        element={<AttackPathDetail selectedAccountId={selectedAccountId} />}
-                    />
-                    <Route
-                        path="/recommendations/:recommendationId"
-                        element={<RecommendationDetail selectedAccountId={selectedAccountId} />}
                     />
                 </Route>
 

@@ -116,7 +116,7 @@ function AttackPathDetail({ selectedAccountId }) {
 
                     {/* Attack Steps Timeline */}
                     <div style={{ backgroundColor: "#0F172A", border: "1px solid #1E293B", borderRadius: "10px", padding: "25px" }}>
-                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "25px" }}>Attack Steps Progression</h3>
+                        <h3 style={{ fontSize: "16px", color: "white", marginBottom: "25px" }}>Attack Progression</h3>
                         {attackPath.attack_steps && attackPath.attack_steps.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: "24px", position: "relative" }}>
                                 {attackPath.attack_steps.map((step, index) => (

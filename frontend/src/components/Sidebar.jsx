@@ -1,5 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
-import { Shield, LayoutDashboard, Key, Activity, Cpu, LogOut } from "lucide-react";
+import {
+    Shield,
+    LayoutDashboard,
+    Server,
+    Activity,
+    Cpu,
+    LogOut,
+    Bookmark,
+    FileText,
+    Settings as SettingsIcon,
+} from "lucide-react";
 
 function Sidebar({ services = [] }) {
     const location = useLocation();
@@ -9,6 +19,16 @@ function Sidebar({ services = [] }) {
         localStorage.removeItem("user");
         window.location.href = "/login";
     };
+
+    const primaryNav = [
+        { path: "/", label: "Dashboard", icon: LayoutDashboard },
+        { path: "/aws-accounts", label: "AWS Accounts", icon: Server },
+        { path: "/attack-paths", label: "Attack Paths", icon: Shield },
+        { path: "/recommendations", label: "Recommendations", icon: Bookmark },
+        { path: "/scans", label: "Scans", icon: Activity },
+        { path: "/reports", label: "Reports", icon: FileText },
+        { path: "/settings", label: "Settings", icon: SettingsIcon },
+    ];
 
     return (
         <div
@@ -28,7 +48,7 @@ function Sidebar({ services = [] }) {
             }}
         >
             <div>
-                {/* Branding */}
+                {/* Branding Logo */}
                 <div
                     style={{
                         padding: "24px 20px",
@@ -44,79 +64,43 @@ function Sidebar({ services = [] }) {
                     </span>
                 </div>
 
-                {/* Navigation Link List */}
-                <div style={{ padding: "20px 10px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <Link
-                            to="/"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "12px",
-                                padding: "10px 12px",
-                                borderRadius: "6px",
-                                color: location.pathname === "/" ? "white" : "#94A3B8",
-                                backgroundColor:
-                                    location.pathname === "/" ? "#1E293B" : "transparent",
-                                textDecoration: "none",
-                                fontSize: "14px",
-                                fontWeight: "500",
-                                transition: "all 0.2s",
-                            }}
-                        >
-                            <LayoutDashboard size={18} />
-                            Dashboard
-                        </Link>
-
-                        <Link
-                            to="/aws-accounts"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "12px",
-                                padding: "10px 12px",
-                                borderRadius: "6px",
-                                color: location.pathname === "/aws-accounts" ? "white" : "#94A3B8",
-                                backgroundColor:
-                                    location.pathname === "/aws-accounts"
-                                        ? "#1E293B"
-                                        : "transparent",
-                                textDecoration: "none",
-                                fontSize: "14px",
-                                fontWeight: "500",
-                                transition: "all 0.2s",
-                            }}
-                        >
-                            <Key size={18} />
-                            AWS Accounts
-                        </Link>
-
-                        <Link
-                            to="/scans"
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "12px",
-                                padding: "10px 12px",
-                                borderRadius: "6px",
-                                color: location.pathname.startsWith("/scans") ? "white" : "#94A3B8",
-                                backgroundColor: location.pathname.startsWith("/scans")
-                                    ? "#1E293B"
-                                    : "transparent",
-                                textDecoration: "none",
-                                fontSize: "14px",
-                                fontWeight: "500",
-                                transition: "all 0.2s",
-                            }}
-                        >
-                            <Activity size={18} />
-                            Scan History
-                        </Link>
+                {/* Primary Navigation */}
+                <div style={{ padding: "20px 10px 10px 10px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {primaryNav.map((item) => {
+                            const Icon = item.icon;
+                            const active =
+                                item.path === "/"
+                                    ? location.pathname === "/"
+                                    : location.pathname.startsWith(item.path);
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "12px",
+                                        padding: "8px 12px",
+                                        borderRadius: "6px",
+                                        color: active ? "white" : "#94A3B8",
+                                        backgroundColor: active ? "#1E293B" : "transparent",
+                                        textDecoration: "none",
+                                        fontSize: "14px",
+                                        fontWeight: "500",
+                                        transition: "all 0.2s",
+                                    }}
+                                >
+                                    <Icon size={18} />
+                                    {item.label}
+                                </Link>
+                            );
+                        })}
                     </div>
 
-                    {/* Discovered Services dynamic listing */}
+                    {/* Detected AWS Services Dynamic Sub-Menu */}
                     {services && services.length > 0 && (
-                        <div style={{ marginTop: "30px" }}>
+                        <div style={{ marginTop: "24px" }}>
                             <span
                                 style={{
                                     paddingLeft: "12px",
@@ -127,14 +111,14 @@ function Sidebar({ services = [] }) {
                                     letterSpacing: "1px",
                                 }}
                             >
-                                Discovered Services
+                                Detected AWS Services
                             </span>
                             <div
                                 style={{
                                     display: "flex",
                                     flexDirection: "column",
                                     gap: "4px",
-                                    marginTop: "10px",
+                                    marginTop: "8px",
                                 }}
                             >
                                 {services.map((service) => {
@@ -148,7 +132,7 @@ function Sidebar({ services = [] }) {
                                                 display: "flex",
                                                 alignItems: "center",
                                                 gap: "12px",
-                                                padding: "8px 12px",
+                                                padding: "6px 12px",
                                                 borderRadius: "6px",
                                                 color: active ? "white" : "#94A3B8",
                                                 backgroundColor: active ? "#1E293B" : "transparent",
@@ -169,7 +153,7 @@ function Sidebar({ services = [] }) {
                 </div>
             </div>
 
-            {/* Logout Footer */}
+            {/* Logout Action */}
             <div style={{ padding: "20px 10px", borderTop: "1px solid #1E293B" }}>
                 <button
                     onClick={handleLogout}

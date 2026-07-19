@@ -25,21 +25,24 @@ scan_bp = Blueprint("scan", __name__)
 def get_aws_accounts():
     user_id = int(get_jwt_identity())
     accounts = AWSAccount.query.filter_by(user_id=user_id).all()
+    results = []
+    for acc in accounts:
+        latest = Scan.query.filter_by(aws_account_id=acc.id).order_by(Scan.started_at.desc()).first()
+        results.append({
+            "id": acc.id,
+            "account_name": acc.account_name,
+            "aws_account_id": acc.aws_account_id,
+            "region": acc.region,
+            "credential_type": acc.credential_type,
+            "created_at": acc.created_at.isoformat(),
+            "last_scan_time": latest.started_at.isoformat() if latest else None,
+            "last_scan_status": latest.status if latest else "Never Scanned"
+        })
     return (
         jsonify(
             {
                 "success": True,
-                "accounts": [
-                    {
-                        "id": acc.id,
-                        "account_name": acc.account_name,
-                        "aws_account_id": acc.aws_account_id,
-                        "region": acc.region,
-                        "credential_type": acc.credential_type,
-                        "created_at": acc.created_at.isoformat(),
-                    }
-                    for acc in accounts
-                ],
+                "accounts": results,
             }
         ),
         200,
