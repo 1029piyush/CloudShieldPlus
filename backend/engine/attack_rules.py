@@ -1,43 +1,14 @@
-"""Attack-path definitions correlated from Rule Engine findings only.
-
-Version 1 uses rule IDs. The helper functions also retain correlation tags,
-so future rules can add tag-based matching without changing the engine.
-"""
-
-from collections.abc import Mapping
-
 from engine.attack_path import AttackPath
-
-
-def _value(finding, name, default=None):
-    if isinstance(finding, Mapping):
-        return finding.get(name, default)
-    return getattr(finding, name, default)
-
-
-def _rule_ids(findings):
-    return {
-        rule_id
-        for rule_id in (_value(finding, "rule_id") for finding in findings)
-        if rule_id
-    }
-
-
-def _related_findings(findings, required_rule_ids):
-    present_rule_ids = _rule_ids(findings)
-    return [rule_id for rule_id in required_rule_ids if rule_id in present_rule_ids]
-
-
-def has_correlation_tag(findings, tag):
-    """Future extension point for tag-based attack-path correlation."""
-    return any(
-        tag in (_value(finding, "correlation_tags", []) or [])
-        for finding in findings
-    )
+from engine.attack_utils import (
+    get_rule_ids,
+    related_findings,
+    affected_resources,
+)
 
 
 def _attack_path(attack_id, title, description, risk, likelihood, impact,
                  findings, required_rule_ids, attack_steps, mitigation):
+    """Internal helper to construct deterministic AttackPath objects."""
     return AttackPath(
         attack_id=attack_id,
         title=title,
@@ -45,7 +16,8 @@ def _attack_path(attack_id, title, description, risk, likelihood, impact,
         risk=risk,
         likelihood=likelihood,
         impact=impact,
-        related_findings=_related_findings(findings, required_rule_ids),
+        related_findings=related_findings(findings, required_rule_ids),
+        affected_resources=affected_resources(findings, required_rule_ids),
         attack_steps=attack_steps,
         mitigation=mitigation,
     )
@@ -55,7 +27,9 @@ def _attack_path(attack_id, title, description, risk, likelihood, impact,
 # AP001 - Public Data Exposure
 # ============================================================
 def attack_public_data_exposure(findings):
-    if "S3001" not in _rule_ids(findings):
+    """S3 bucket Block Public Access disabled."""
+    required = ["S3001"]
+    if not set(required).issubset(get_rule_ids(findings)):
         return None
 
     return _attack_path(
@@ -66,11 +40,23 @@ def attack_public_data_exposure(findings):
         "High",
         "Critical",
         findings,
-        ["S3001"],
+        required,
         [
-            "An attacker identifies a bucket with Block Public Access disabled.",
-            "The attacker tests bucket policies or ACLs for anonymous object access.",
-            "Exposed objects are read, copied, or used to support additional attacks.",
+            {
+                "step": 1,
+                "title": "Discovery",
+                "description": "Attacker identifies a bucket with Block Public Access disabled.",
+            },
+            {
+                "step": 2,
+                "title": "Enumeration",
+                "description": "Attacker tests bucket policies or ACLs for anonymous object access.",
+            },
+            {
+                "step": 3,
+                "title": "Data Access",
+                "description": "Exposed objects are read, copied, or used to support additional attacks.",
+            },
         ],
         "Enable all S3 Block Public Access settings and remove unintended public bucket policies and ACLs.",
     )
@@ -80,7 +66,9 @@ def attack_public_data_exposure(findings):
 # AP002 - Credential Theft
 # ============================================================
 def attack_credential_theft(findings):
-    if "IAM002" not in _rule_ids(findings):
+    """IAM user does not have MFA enabled."""
+    required = ["IAM002"]
+    if not set(required).issubset(get_rule_ids(findings)):
         return None
 
     return _attack_path(
@@ -91,27 +79,40 @@ def attack_credential_theft(findings):
         "High",
         "High",
         findings,
-        ["IAM002"],
+        required,
         [
-            "An attacker obtains an IAM user's password through phishing, reuse, or malware.",
-            "The attacker signs in without needing to satisfy a second authentication factor.",
-            "The attacker uses the IAM user's permissions to access AWS resources.",
+            {
+                "step": 1,
+                "title": "Credential Access",
+                "description": "An attacker obtains an IAM user's password through phishing, reuse, or malware.",
+            },
+            {
+                "step": 2,
+                "title": "Authentication",
+                "description": "The attacker signs in without needing to satisfy a second authentication factor.",
+            },
+            {
+                "step": 3,
+                "title": "Resource Access",
+                "description": "The attacker uses the IAM user's permissions to access AWS resources.",
+            },
         ],
         "Require MFA for IAM users, remove unnecessary console access, and use least-privilege permissions.",
     )
 
 
 # ============================================================
-# AP003 - Account Takeover
+# AP003 - Administrator Account Takeover
 # ============================================================
 def attack_account_takeover(findings):
+    """Administrative IAM account lacks MFA."""
     required = ["IAM020", "IAM002"]
-    if not set(required).issubset(_rule_ids(findings)):
+    if not set(required).issubset(get_rule_ids(findings)):
         return None
 
     return _attack_path(
         "AP003",
-        "Account Takeover",
+        "Administrator Account Takeover",
         "An administrative IAM account lacks MFA, allowing stolen credentials to become account-wide control.",
         "Critical",
         "High",
@@ -119,9 +120,21 @@ def attack_account_takeover(findings):
         findings,
         required,
         [
-            "An attacker obtains the administrator's password or authenticated session.",
-            "The absence of MFA permits authentication without a second factor.",
-            "Administrative permissions allow the attacker to change account configuration and retain control.",
+            {
+                "step": 1,
+                "title": "Credential Access",
+                "description": "An attacker obtains the administrator's password or authenticated session.",
+            },
+            {
+                "step": 2,
+                "title": "Authentication",
+                "description": "The absence of MFA permits authentication without a second factor.",
+            },
+            {
+                "step": 3,
+                "title": "Account Control",
+                "description": "Administrative permissions allow the attacker to change account configuration and retain control.",
+            },
         ],
         "Enable MFA immediately for administrative identities and replace broad administrator access with least-privilege permissions.",
     )
@@ -130,9 +143,10 @@ def attack_account_takeover(findings):
 # ============================================================
 # AP004 - Stealth Credential Compromise
 # ============================================================
-def attack_stealth_credential_compromise(findings):
+def attack_stealth_compromise(findings):
+    """IAM account without MFA compromised while CloudTrail is absent/disabled."""
     required = ["IAM002", "CT001"]
-    if not set(required).issubset(_rule_ids(findings)):
+    if not set(required).issubset(get_rule_ids(findings)):
         return None
 
     return _attack_path(
@@ -145,9 +159,21 @@ def attack_stealth_credential_compromise(findings):
         findings,
         required,
         [
-            "An attacker compromises an IAM user that does not require MFA.",
-            "The attacker performs AWS API actions using the compromised identity.",
-            "Without CloudTrail, the account lacks an authoritative record for detection and investigation.",
+            {
+                "step": 1,
+                "title": "Credential Access",
+                "description": "An attacker compromises an IAM user that does not require MFA.",
+            },
+            {
+                "step": 2,
+                "title": "Stealth Operations",
+                "description": "The attacker performs AWS API actions using the compromised identity.",
+            },
+            {
+                "step": 3,
+                "title": "Defense Evasion",
+                "description": "Without CloudTrail, the account lacks an authoritative record for detection and investigation.",
+            },
         ],
         "Enforce MFA for IAM users and configure a multi-Region CloudTrail trail with protected log storage.",
     )
@@ -157,8 +183,9 @@ def attack_stealth_credential_compromise(findings):
 # AP005 - Internet to Compute
 # ============================================================
 def attack_internet_to_compute(findings):
+    """Public EC2 instance security group exposes SSH to the internet."""
     required = ["SG001", "EC2001"]
-    if not set(required).issubset(_rule_ids(findings)):
+    if not set(required).issubset(get_rule_ids(findings)):
         return None
 
     return _attack_path(
@@ -171,9 +198,21 @@ def attack_internet_to_compute(findings):
         findings,
         required,
         [
-            "An attacker discovers the EC2 instance's public IP address.",
-            "The attacker identifies SSH access exposed through a security group.",
-            "The attacker attempts credential attacks or exploits against the exposed service.",
+            {
+                "step": 1,
+                "title": "Discovery",
+                "description": "An attacker discovers the EC2 instance's public IP address.",
+            },
+            {
+                "step": 2,
+                "title": "Access Attempt",
+                "description": "The attacker identifies SSH access exposed through a security group.",
+            },
+            {
+                "step": 3,
+                "title": "Compromise",
+                "description": "The attacker attempts credential attacks or exploits against the exposed service.",
+            },
         ],
         "Remove unnecessary public IPs and restrict SSH to trusted CIDRs, a bastion host, VPN, or Systems Manager Session Manager.",
     )
@@ -183,6 +222,6 @@ ATTACK_RULES = [
     attack_public_data_exposure,
     attack_credential_theft,
     attack_account_takeover,
-    attack_stealth_credential_compromise,
+    attack_stealth_compromise,
     attack_internet_to_compute,
 ]

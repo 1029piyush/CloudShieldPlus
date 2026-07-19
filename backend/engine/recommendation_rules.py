@@ -1,137 +1,245 @@
-"""Attack-path-first remediation plans for CloudShield+."""
-
-from collections.abc import Mapping
-
 from engine.recommendation import Recommendation
+from engine.recommendation_utils import (
+    get_attack_ids,
+    related_findings,
+    related_attack_paths,
+    affected_resources,
+)
 
 
-def _value(item, name, default=None):
-    if isinstance(item, Mapping):
-        return item.get(name, default)
-    return getattr(item, name, default)
-
-
-def _attack_path(attack_paths, attack_id):
-    return next(
-        (
-            path
-            for path in attack_paths
-            if _value(path, "attack_id") == attack_id
-        ),
-        None,
-    )
-
-
-def _recommendation(recommendation_id, attack_path, service,
-                    remediation_steps, risk_reduction, automation_guidance):
+def _recommendation(recommendation_id, title, description, priority, category,
+                    business_impact, findings, required_rule_ids, attack_paths,
+                    required_attack_ids, implementation_steps, estimated_effort,
+                    expected_risk_reduction, auto_fix_supported, references=None):
+    """Internal helper to construct deterministic Recommendation objects."""
     return Recommendation(
         recommendation_id=recommendation_id,
-        title=f"Mitigate: {_value(attack_path, 'title')}",
-        description=_value(attack_path, "description"),
-        priority=_value(attack_path, "risk"),
-        service=service,
-        related_findings=_value(attack_path, "related_findings", []),
-        related_attack_paths=[_value(attack_path, "attack_id")],
-        remediation_steps=remediation_steps,
-        risk_reduction=risk_reduction,
-        automation_guidance=automation_guidance,
+        title=title,
+        description=description,
+        priority=priority,
+        category=category,
+        business_impact=business_impact,
+        affected_resources=affected_resources(findings, required_rule_ids),
+        related_findings=related_findings(findings, required_rule_ids),
+        related_attack_paths=related_attack_paths(attack_paths, required_attack_ids),
+        implementation_steps=implementation_steps,
+        estimated_effort=estimated_effort,
+        expected_risk_reduction=expected_risk_reduction,
+        references=references or [],
+        auto_fix_supported=auto_fix_supported,
     )
 
 
-# REC001 - AP001 Public Data Exposure
-def recommend_public_data_exposure(findings, attack_paths):
-    attack_path = _attack_path(attack_paths, "AP001")
-    if not attack_path:
+# ============================================================
+# REC001 - Enable MFA (Identity)
+# ============================================================
+def recommend_enable_mfa(findings, attack_paths):
+    """Enforce MFA for user identities if credential-related threat scenarios are active."""
+    required_attacks = ["AP002", "AP003", "AP004"]
+    active_attacks = get_attack_ids(attack_paths)
+
+    # Check if any associated attack path is present
+    if not any(attack in active_attacks for attack in required_attacks):
         return None
 
+    # Priority determination based on severity of active threats
+    priority = "High"
+    if "AP003" in active_attacks or "AP004" in active_attacks:
+        priority = "Critical"
+
     return _recommendation(
-        "REC001", attack_path, "S3",
-        [
-            "Enable all four S3 Block Public Access settings.",
-            "Remove unintended public ACL grants and bucket-policy statements.",
-            "Use CloudFront with origin access control for intentionally public content.",
+        recommendation_id="REC001",
+        title="Enable MFA",
+        description="Enforce Multi-Factor Authentication (MFA) for administrative and standard console users.",
+        priority=priority,
+        category="Identity",
+        business_impact="Password-only console logins allow attackers to easily compromise user accounts and escalate privileges to administrative control.",
+        findings=findings,
+        required_rule_ids=["IAM002", "IAM005"],
+        attack_paths=attack_paths,
+        required_attack_ids=required_attacks,
+        implementation_steps=[
+            {
+                "step": 1,
+                "title": "Enable MFA",
+                "description": "Enable multi-factor authentication for all affected IAM users.",
+            },
+            {
+                "step": 2,
+                "title": "Verify",
+                "description": "Confirm every affected IAM user has MFA enabled.",
+            },
         ],
-        "Eliminates the public-data-exposure attack path.",
-        "Enforce account-level S3 Block Public Access and monitor policy drift with AWS Config.",
+        estimated_effort="Medium",
+        expected_risk_reduction="Very High",
+        auto_fix_supported=False,
     )
 
 
-# REC002 - AP002 Credential Theft
-def recommend_credential_theft(findings, attack_paths):
-    attack_path = _attack_path(attack_paths, "AP002")
-    if not attack_path:
+# ============================================================
+# REC002 - Enable S3 Block Public Access (Storage)
+# ============================================================
+def recommend_enable_s3_block_public_access(findings, attack_paths):
+    """Enable S3 BPA if public exposure risk is identified."""
+    required_attacks = ["AP001"]
+    active_attacks = get_attack_ids(attack_paths)
+
+    if not any(attack in active_attacks for attack in required_attacks):
         return None
 
     return _recommendation(
-        "REC002", attack_path, "IAM",
-        [
-            "Enable MFA for every IAM user with a console password.",
-            "Remove console access from identities that only require programmatic access.",
-            "Use least-privilege permissions to limit the impact of a compromised identity.",
+        recommendation_id="REC002",
+        title="Enable S3 Block Public Access",
+        description="Enable S3 Block Public Access to prevent public exposure of S3 bucket contents.",
+        priority="Critical",
+        category="Storage",
+        business_impact="Unintended public buckets allow anonymous internet users to read, download, or modify sensitive business data.",
+        findings=findings,
+        required_rule_ids=["S3001"],
+        attack_paths=attack_paths,
+        required_attack_ids=required_attacks,
+        implementation_steps=[
+            {
+                "step": 1,
+                "title": "Enable Block Public Access",
+                "description": "Enable S3 Block Public Access settings at the bucket or account level.",
+            },
+            {
+                "step": 2,
+                "title": "Verify",
+                "description": "Verify that public access is blocked for all affected buckets.",
+            },
         ],
-        "Makes stolen passwords insufficient for AWS console access.",
-        "Alert when a new console user is created without MFA and enforce MFA with IAM policy conditions.",
+        estimated_effort="Low",
+        expected_risk_reduction="High",
+        auto_fix_supported=True,
     )
 
 
-# REC003 - AP003 Account Takeover
-def recommend_account_takeover(findings, attack_paths):
-    attack_path = _attack_path(attack_paths, "AP003")
-    if not attack_path:
+# ============================================================
+# REC003 - Enable CloudTrail (Monitoring)
+# ============================================================
+def recommend_enable_cloudtrail(findings, attack_paths):
+    """Enable CloudTrail if stealth operations threat scenario is active."""
+    required_attacks = ["AP004"]
+    active_attacks = get_attack_ids(attack_paths)
+
+    if not any(attack in active_attacks for attack in required_attacks):
         return None
 
     return _recommendation(
-        "REC003", attack_path, "IAM",
-        [
-            "Enable MFA immediately for administrative IAM identities.",
-            "Remove AdministratorAccess and replace it with scoped, task-specific permissions.",
-            "Rotate active access keys and remove keys that are unused or no longer required.",
+        recommendation_id="REC003",
+        title="Enable CloudTrail",
+        description="Configure and enable a multi-region AWS CloudTrail trail to log all API activity.",
+        priority="High",
+        category="Monitoring",
+        business_impact="Without audit logging, security incidents cannot be traced, analyzed, or detected in a timely manner.",
+        findings=findings,
+        required_rule_ids=["CT001"],
+        attack_paths=attack_paths,
+        required_attack_ids=required_attacks,
+        implementation_steps=[
+            {
+                "step": 1,
+                "title": "Enable CloudTrail",
+                "description": "Configure a multi-region trail that records all management events.",
+            },
+            {
+                "step": 2,
+                "title": "Verify",
+                "description": "Confirm logs are being delivered to the destination bucket.",
+            },
         ],
-        "Breaks the path from a stolen credential to full account control.",
-        "Use permissions boundaries and SCPs to prevent broad administrative access from being reintroduced.",
+        estimated_effort="Low",
+        expected_risk_reduction="High",
+        auto_fix_supported=True,
     )
 
 
-# REC004 - AP004 Stealth Credential Compromise
-def recommend_stealth_credential_compromise(findings, attack_paths):
-    attack_path = _attack_path(attack_paths, "AP004")
-    if not attack_path:
+# ============================================================
+# REC004 - Restrict Public SSH Access (Network)
+# ============================================================
+def recommend_remove_public_ssh(findings, attack_paths):
+    """Restrict SSH access if compute exposure risk is present."""
+    required_attacks = ["AP005"]
+    active_attacks = get_attack_ids(attack_paths)
+
+    if not any(attack in active_attacks for attack in required_attacks):
         return None
 
     return _recommendation(
-        "REC004", attack_path, "CloudTrail",
-        [
-            "Enforce MFA for IAM users with console access.",
-            "Create a multi-Region CloudTrail trail and include global service events.",
-            "Protect logs with validation and alert on high-risk IAM activity.",
+        recommendation_id="REC004",
+        title="Restrict Public SSH Access",
+        description="Remove unrestricted security group rules permitting SSH ingress from the public internet.",
+        priority="High",
+        category="Network",
+        business_impact="Exposing SSH publicly permits brute-forcing attacks or exploitation of host services.",
+        findings=findings,
+        required_rule_ids=["SG001"],
+        attack_paths=attack_paths,
+        required_attack_ids=required_attacks,
+        implementation_steps=[
+            {
+                "step": 1,
+                "title": "Restrict SSH",
+                "description": "Update security group rules to restrict SSH access to trusted IP ranges or bastions.",
+            },
+            {
+                "step": 2,
+                "title": "Verify",
+                "description": "Verify that SSH port is no longer open to the public internet.",
+            },
         ],
-        "Improves both prevention and detection of credential compromise.",
-        "Deploy CloudTrail through infrastructure as code and protect it with an SCP against deletion or modification.",
+        estimated_effort="Low",
+        expected_risk_reduction="High",
+        auto_fix_supported=True,
     )
 
 
-# REC005 - AP005 Internet to Compute
-def recommend_internet_to_compute(findings, attack_paths):
-    attack_path = _attack_path(attack_paths, "AP005")
-    if not attack_path:
+# ============================================================
+# REC005 - Enforce IMDSv2 (Compute)
+# ============================================================
+def recommend_enable_imdsv2(findings, attack_paths):
+    """Enforce IMDSv2 if compute intrusion risk is active."""
+    required_attacks = ["AP005"]
+    active_attacks = get_attack_ids(attack_paths)
+
+    if not any(attack in active_attacks for attack in required_attacks):
         return None
 
     return _recommendation(
-        "REC005", attack_path, "EC2",
-        [
-            "Remove unnecessary public IP addresses and place workloads in private subnets.",
-            "Restrict SSH ingress to trusted CIDRs, a bastion host, VPN, or Systems Manager Session Manager.",
-            "Require IMDSv2 on all EC2 instances to reduce credential-theft exposure.",
+        recommendation_id="REC005",
+        title="Enforce IMDSv2",
+        description="Configure EC2 instances to require the use of Instance Metadata Service Version 2 (IMDSv2).",
+        priority="High",
+        category="Compute",
+        business_impact="IMDSv1 permits attackers to extract AWS credentials via SSRF (Server-Side Request Forgery) vulnerabilities.",
+        findings=findings,
+        required_rule_ids=["EC2001"],
+        attack_paths=attack_paths,
+        required_attack_ids=required_attacks,
+        implementation_steps=[
+            {
+                "step": 1,
+                "title": "Enforce IMDSv2",
+                "description": "Update EC2 instances to require IMDSv2 session-oriented requests.",
+            },
+            {
+                "step": 2,
+                "title": "Verify",
+                "description": "Verify that IMDSv1 is disabled on the EC2 instances.",
+            },
         ],
-        "Breaks the internet-to-compute intrusion path.",
-        "Enforce approved launch-template and security-group patterns with AWS Config and infrastructure-as-code checks.",
+        estimated_effort="Low",
+        expected_risk_reduction="High",
+        auto_fix_supported=True,
     )
 
 
 RECOMMENDATION_RULES = [
-    recommend_public_data_exposure,
-    recommend_credential_theft,
-    recommend_account_takeover,
-    recommend_stealth_credential_compromise,
-    recommend_internet_to_compute,
+    recommend_enable_mfa,
+    recommend_enable_s3_block_public_access,
+    recommend_enable_cloudtrail,
+    recommend_remove_public_ssh,
+    recommend_enable_imdsv2,
 ]

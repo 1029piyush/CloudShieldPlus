@@ -1,13 +1,16 @@
 from scanners.iam_scanner import list_iam_users
 from scanners.s3_scanner import discover_s3
 from scanners.ec2_scanner import discover_ec2
+from scanners.iam_scanner import list_iam_users
+from scanners.s3_scanner import discover_s3
+from scanners.ec2_scanner import discover_ec2
 from scanners.security_group_scanner import discover_security_groups
 from scanners.cloudtrail_scanner import discover_cloudtrail
 from scanners.password_policy_scanner import discover_password_policy
 
 from engine.finding_aggregator import aggregate_findings
 from engine.attack_path_engine import analyze_attack_paths
-from engine.recommendation_engine import analyze_recommendations
+from engine.recommendation_engine import generate_recommendations
 from engine.report_engine import build_report
 
 
@@ -32,7 +35,7 @@ def run_full_scan():
     # Collect all findings from every service
     findings = aggregate_findings(services)
     attack_paths = analyze_attack_paths(findings)
-    recommendations = analyze_recommendations(findings, attack_paths)
+    recommendations = generate_recommendations(findings, attack_paths)
     report = build_report(services, findings, attack_paths, recommendations)
 
     return {

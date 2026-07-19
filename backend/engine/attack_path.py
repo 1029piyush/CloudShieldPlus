@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 
 @dataclass
@@ -12,20 +12,10 @@ class AttackPath:
     likelihood: str
     impact: str
     related_findings: list
+    affected_resources: list
     attack_steps: list
     mitigation: str
     references: list = field(default_factory=list)
 
     def to_dict(self):
-        return {
-            "attack_id": self.attack_id,
-            "title": self.title,
-            "description": self.description,
-            "risk": self.risk,
-            "likelihood": self.likelihood,
-            "impact": self.impact,
-            "related_findings": self.related_findings,
-            "attack_steps": self.attack_steps,
-            "mitigation": self.mitigation,
-            "references": self.references,
-        }
+        return asdict(self)

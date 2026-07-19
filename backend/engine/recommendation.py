@@ -9,13 +9,16 @@ class Recommendation:
     title: str
     description: str
     priority: str
-    service: str
+    category: str
+    business_impact: str
+    affected_resources: list
     related_findings: list
     related_attack_paths: list
-    remediation_steps: list
-    risk_reduction: str
-    automation_guidance: str = ""
+    implementation_steps: list
+    estimated_effort: str
+    expected_risk_reduction: str
     references: list = field(default_factory=list)
+    auto_fix_supported: bool = False
 
     def to_dict(self):
         return asdict(self)
