@@ -1,0 +1,264 @@
+.dashboard-page {
+  padding: 32px;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #eef9ff 0%, #d4ecff 42%, #b7e0ff 100%);
+  color: #0f172a;
+}
+
+.dashboard-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.dashboard-header > div {
+  flex: 1;
+  min-width: 240px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #2563eb;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+  color: #0f172a;
+}
+
+.subtitle {
+  max-width: 600px;
+  color: #334e68;
+  margin-top: 10px;
+  line-height: 1.7;
+}
+
+.logout-button,
+.action-button,
+.secondary-button {
+  border: none;
+  border-radius: 18px;
+  padding: 14px 20px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.logout-button {
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+  color: #ffffff;
+}
+
+.action-button {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+}
+
+.secondary-button {
+  background: #ffffff;
+  color: #2563eb;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.status-card,
+.threat-card,
+.finding-row {
+  background: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 32px;
+  padding: 24px;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
+}
+
+.status-card {
+  min-height: 150px;
+}
+
+.card-label {
+  color: #2563eb;
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+}
+
+.card-detail {
+  margin-top: 16px;
+  color: #334e68;
+}
+
+.dashboard-section {
+  margin-bottom: 28px;
+}
+
+.control-grid-section h2 {
+  margin-bottom: 16px;
+  color: #0f172a;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.control-card {
+  background: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 32px;
+  padding: 24px;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.08);
+}
+
+.control-card h3 {
+  margin: 0;
+}
+
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.section-heading > div {
+  flex: 1;
+  min-width: 240px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.threat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.threat-card {
+  padding: 22px;
+}
+
+.threat-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.threat-card-top p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.threat-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.threat-high {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.threat-medium {
+  background: rgba(96, 165, 250, 0.12);
+  color: #1d4ed8;
+}
+
+.threat-low {
+  background: rgba(191, 219, 254, 0.4);
+  color: #2563eb;
+}
+
+.findings-list {
+  display: grid;
+  gap: 14px;
+}
+
+.finding-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 32px;
+}
+
+.finding-row > div {
+  min-width: 0;
+}
+
+.finding-row p {
+  margin: 0;
+}
+
+.finding-id {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.status-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.status-open {
+  background: rgba(248, 113, 113, 0.14);
+  color: #dc2626;
+}
+
+.status-investigating {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.status-review {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.scan-message {
+  margin: 16px 0;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
