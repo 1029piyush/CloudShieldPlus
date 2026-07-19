@@ -40,6 +40,97 @@ RULE_PROFILES = {
         "confidence": 10
     },
 
+    "IAM006": {
+        "business_impact": 8,
+        "exploitability": 6,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "IAM007": {
+        "business_impact": 5,
+        "exploitability": 3,
+        "exposure": 4,
+        "confidence": 10
+    },
+
+    "IAM008": {
+        "business_impact": 3,
+        "exploitability": 2,
+        "exposure": 3,
+        "confidence": 10
+    },
+
+    "IAM009": {
+        "business_impact": 6,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "IAM010": {
+        "business_impact": 3,
+        "exploitability": 2,
+        "exposure": 3,
+        "confidence": 10
+    },
+
+    "IAM011": {
+        "business_impact": 3,
+        "exploitability": 1,
+        "exposure": 2,
+        "confidence": 9
+    },
+
+    "IAM012": {
+        "business_impact": 4,
+        "exploitability": 3,
+        "exposure": 3,
+        "confidence": 9
+    },
+
+    "IAM013": {
+        "business_impact": 6,
+        "exploitability": 6,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "IAM016": {
+        "business_impact": 9,
+        "exploitability": 9,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "IAM017": {
+        "business_impact": 8,
+        "exploitability": 8,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "IAM018": {
+        "business_impact": 10,
+        "exploitability": 10,
+        "exposure": 8,
+        "confidence": 10
+    },
+
+    "IAM019": {
+        "business_impact": 9,
+        "exploitability": 9,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "IAM020": {
+        "business_impact": 10,
+        "exploitability": 10,
+        "exposure": 8,
+        "confidence": 10
+    },
+
     # ================= S3 =================
 
     "S3001": {

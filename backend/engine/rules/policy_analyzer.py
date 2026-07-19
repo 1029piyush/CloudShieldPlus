@@ -118,6 +118,9 @@ def has_wildcard_action(policy_document):
 
     for statement in get_statements(policy_document):
 
+        if statement.get("Effect") != "Allow":
+            continue
+
         actions = statement.get("Action", [])
 
         if isinstance(actions, str):
@@ -133,6 +136,9 @@ def has_wildcard_resource(policy_document):
 
     for statement in get_statements(policy_document):
 
+        if statement.get("Effect") != "Allow":
+            continue
+
         resources = statement.get("Resource", [])
 
         if isinstance(resources, str):
@@ -147,6 +153,9 @@ def has_wildcard_resource(policy_document):
 def has_full_admin(policy_document):
 
     for statement in get_statements(policy_document):
+
+        if statement.get("Effect") != "Allow":
+            continue
 
         actions = statement.get("Action", [])
         resources = statement.get("Resource", [])
@@ -183,6 +192,9 @@ def get_dangerous_actions(policy_document):
     found = []
 
     for statement in get_statements(policy_document):
+
+        if statement.get("Effect") != "Allow":
+            continue
 
         actions = statement.get("Action", [])
 

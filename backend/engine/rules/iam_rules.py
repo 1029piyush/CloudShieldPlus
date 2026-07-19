@@ -213,7 +213,7 @@ def iam005(user):
 
         resource=user["username"],
 
-        severity=severity_for_rule("IAM005"),
+        severity=severity_for_rule("IAM006"),
 
         title="Console Login Without MFA",
 
@@ -357,50 +357,6 @@ def iam008(user):
 
 
 # ============================================================
-# Rule Registry
-# ============================================================
-
-RULES = [
-
-    iam001,
-
-    iam002,
-
-    iam003,
-
-    iam004,
-
-    iam005,
-
-    iam006,
-
-    iam007,
-
-    iam008
-
-]
-
-
-# ============================================================
-# Rule Engine
-# ============================================================
-
-def analyze_iam(resources):
-
-    findings = []
-
-    for user in resources:
-
-        for rule in RULES:
-
-            finding = rule(user)
-
-            if finding:
-                findings.append(finding)
-
-    return findings
-
-# ============================================================
 # IAM009 - Access Key Never Used
 # ============================================================
 
@@ -408,7 +364,10 @@ def iam009(user):
 
     for key in user.get("access_keys", []):
 
-        if key.get("last_used") in [None, "None"]:
+        if (
+            key.get("status") == "Active"
+            and key.get("last_used") in [None, "None"]
+        ):
 
             return Finding(
 
@@ -486,7 +445,7 @@ def iam010(user):
 
 def iam011(user):
 
-    if user.get("managed_policies"):
+    if user.get("managed_policies") or user.get("inline_policies"):
         return None
 
     return Finding(
@@ -826,3 +785,40 @@ def iam019(user):
         ]
 
     ).to_dict()
+
+
+# ============================================================
+# Rule Registry
+# ============================================================
+
+RULES = [
+    iam001,
+    iam002,
+    iam003,
+    iam004,
+    iam005,
+    iam006,
+    iam007,
+    iam008,
+    iam009,
+    iam010,
+    iam011,
+    iam012,
+    iam013,
+    iam016,
+    iam017,
+    iam018,
+    iam019,
+    iam020,
+]
+
+
+def analyze_iam(resources):
+    """Run every IAM rule against every discovered IAM user."""
+    findings = []
+    for user in resources:
+        for rule in RULES:
+            finding = rule(user)
+            if finding:
+                findings.append(finding)
+    return findings

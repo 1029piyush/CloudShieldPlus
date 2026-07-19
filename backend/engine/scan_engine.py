@@ -6,6 +6,8 @@ from scanners.cloudtrail_scanner import discover_cloudtrail
 from scanners.password_policy_scanner import discover_password_policy
 
 from engine.finding_aggregator import aggregate_findings
+from engine.attack_path_engine import analyze_attack_paths
+from engine.recommendation_engine import analyze_recommendations
 
 
 def run_full_scan():
@@ -28,11 +30,23 @@ def run_full_scan():
 
     # Collect all findings from every service
     findings = aggregate_findings(services)
+    attack_paths = analyze_attack_paths(findings)
+    recommendations = analyze_recommendations(findings, attack_paths)
 
     return {
 
         "services": services,
 
-        "findings": findings
+        "findings": findings,
+
+        "attack_paths": [
+            attack_path.to_dict()
+            for attack_path in attack_paths
+        ],
+
+        "recommendations": [
+            recommendation.to_dict()
+            for recommendation in recommendations
+        ]
 
     }
