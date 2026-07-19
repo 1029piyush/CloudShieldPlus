@@ -3,7 +3,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 
-const GOOGLE_CLIENT_ID = "870630654060-p427495s5r1fub6v54qsk8hfl8lphg7c.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "870630654060-p427495s5r1fub6v54qsk8hfl8lphg7c.apps.googleusercontent.com";
 
 // Protected Route wrapper
 function ProtectedRoute({ children }) {
