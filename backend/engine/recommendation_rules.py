@@ -1,4 +1,4 @@
-"""Deterministic recommendation definitions for CloudShield+ findings."""
+"""Attack-path-first remediation plans for CloudShield+."""
 
 from collections.abc import Mapping
 
@@ -11,187 +11,127 @@ def _value(item, name, default=None):
     return getattr(item, name, default)
 
 
-def _ids(items, field):
-    return {
-        value
-        for value in (_value(item, field) for item in items)
-        if value
-    }
+def _attack_path(attack_paths, attack_id):
+    return next(
+        (
+            path
+            for path in attack_paths
+            if _value(path, "attack_id") == attack_id
+        ),
+        None,
+    )
 
 
-def _related_ids(items, field, candidates):
-    present = _ids(items, field)
-    return [candidate for candidate in candidates if candidate in present]
-
-
-def _recommendation(recommendation_id, title, description, priority, service,
-                    findings, attack_paths, finding_ids, attack_ids,
+def _recommendation(recommendation_id, attack_path, service,
                     remediation_steps, risk_reduction, automation_guidance):
     return Recommendation(
         recommendation_id=recommendation_id,
-        title=title,
-        description=description,
-        priority=priority,
+        title=f"Mitigate: {_value(attack_path, 'title')}",
+        description=_value(attack_path, "description"),
+        priority=_value(attack_path, "risk"),
         service=service,
-        related_findings=_related_ids(findings, "rule_id", finding_ids),
-        related_attack_paths=_related_ids(attack_paths, "attack_id", attack_ids),
+        related_findings=_value(attack_path, "related_findings", []),
+        related_attack_paths=[_value(attack_path, "attack_id")],
         remediation_steps=remediation_steps,
         risk_reduction=risk_reduction,
         automation_guidance=automation_guidance,
     )
 
 
-# REC001 - Secure Public S3 Access
-def recommend_s3_public_access(findings, attack_paths):
-    finding_ids = ["S3001", "S3008", "S3009"]
-    attack_ids = ["AP001"]
-    if not (_related_ids(findings, "rule_id", finding_ids) or _related_ids(attack_paths, "attack_id", attack_ids)):
+# REC001 - AP001 Public Data Exposure
+def recommend_public_data_exposure(findings, attack_paths):
+    attack_path = _attack_path(attack_paths, "AP001")
+    if not attack_path:
         return None
 
     return _recommendation(
-        "REC001", "Secure Public S3 Access",
-        "Restrict public bucket access to prevent unintended object exposure.",
-        "Critical", "S3", findings, attack_paths, finding_ids, attack_ids,
+        "REC001", attack_path, "S3",
         [
             "Enable all four S3 Block Public Access settings.",
-            "Remove public ACL grants and bucket-policy statements unless a documented exception is required.",
-            "Use CloudFront with origin access control for public content instead of direct bucket access.",
+            "Remove unintended public ACL grants and bucket-policy statements.",
+            "Use CloudFront with origin access control for intentionally public content.",
         ],
-        "Eliminates the public data-exposure attack path.",
-        "Use AWS Config managed rules and S3 Block Public Access at the account level to prevent recurrence.",
+        "Eliminates the public-data-exposure attack path.",
+        "Enforce account-level S3 Block Public Access and monitor policy drift with AWS Config.",
     )
 
 
-# REC002 - Enforce MFA for IAM Users
-def recommend_iam_mfa(findings, attack_paths):
-    finding_ids = ["IAM002", "IAM005", "IAM020"]
-    attack_ids = ["AP002", "AP003", "AP004"]
-    if not (_related_ids(findings, "rule_id", finding_ids) or _related_ids(attack_paths, "attack_id", attack_ids)):
+# REC002 - AP002 Credential Theft
+def recommend_credential_theft(findings, attack_paths):
+    attack_path = _attack_path(attack_paths, "AP002")
+    if not attack_path:
         return None
 
     return _recommendation(
-        "REC002", "Enforce MFA for IAM Users",
-        "Require MFA for IAM users with console access, prioritising administrative identities.",
-        "Critical", "IAM", findings, attack_paths, finding_ids, attack_ids,
+        "REC002", attack_path, "IAM",
         [
             "Enable MFA for every IAM user with a console password.",
-            "Remove console access for users that require programmatic access only.",
-            "Apply an IAM policy or SCP that denies sensitive actions when MFA is absent.",
+            "Remove console access from identities that only require programmatic access.",
+            "Use least-privilege permissions to limit the impact of a compromised identity.",
         ],
-        "Reduces credential-theft and account-takeover risk.",
-        "Monitor IAM.5/IAM.19 Security Hub controls and alert on new console users without MFA.",
+        "Makes stolen passwords insufficient for AWS console access.",
+        "Alert when a new console user is created without MFA and enforce MFA with IAM policy conditions.",
     )
 
 
-# REC003 - Restore CloudTrail Coverage
-def recommend_cloudtrail_coverage(findings, attack_paths):
-    finding_ids = ["CT001", "CT002", "CT003", "CT004", "CT005", "CT007"]
-    attack_ids = ["AP004"]
-    if not (_related_ids(findings, "rule_id", finding_ids) or _related_ids(attack_paths, "attack_id", attack_ids)):
+# REC003 - AP003 Account Takeover
+def recommend_account_takeover(findings, attack_paths):
+    attack_path = _attack_path(attack_paths, "AP003")
+    if not attack_path:
         return None
 
     return _recommendation(
-        "REC003", "Restore CloudTrail Coverage and Alerting",
-        "Ensure AWS activity is recorded, protected, and available for near-real-time detection.",
-        "High", "CloudTrail", findings, attack_paths, finding_ids, attack_ids,
+        "REC003", attack_path, "IAM",
         [
-            "Create or start a multi-Region CloudTrail trail and include global service events.",
-            "Enable log-file validation and deliver logs to a protected S3 bucket.",
-            "Send events to CloudWatch Logs or an approved SIEM and alert on high-risk IAM changes.",
+            "Enable MFA immediately for administrative IAM identities.",
+            "Remove AdministratorAccess and replace it with scoped, task-specific permissions.",
+            "Rotate active access keys and remove keys that are unused or no longer required.",
         ],
-        "Improves detection, investigation, and containment of compromised identities.",
-        "Deploy the trail through infrastructure as code and protect it with an SCP against deletion or modification.",
+        "Breaks the path from a stolen credential to full account control.",
+        "Use permissions boundaries and SCPs to prevent broad administrative access from being reintroduced.",
     )
 
 
-# REC004 - Protect Public EC2 and Instance Metadata
-def recommend_ec2_public_compute(findings, attack_paths):
-    finding_ids = ["EC2001", "EC2002", "EC2006", "EC2008", "SG001", "SG002", "SG004"]
-    attack_ids = ["AP005"]
-    if not (_related_ids(findings, "rule_id", finding_ids) or _related_ids(attack_paths, "attack_id", attack_ids)):
+# REC004 - AP004 Stealth Credential Compromise
+def recommend_stealth_credential_compromise(findings, attack_paths):
+    attack_path = _attack_path(attack_paths, "AP004")
+    if not attack_path:
         return None
 
     return _recommendation(
-        "REC004", "Protect Public EC2 and Instance Metadata",
-        "Reduce internet reachability and prevent metadata-based credential theft from EC2 workloads.",
-        "High", "EC2", findings, attack_paths, finding_ids, attack_ids,
+        "REC004", attack_path, "CloudTrail",
+        [
+            "Enforce MFA for IAM users with console access.",
+            "Create a multi-Region CloudTrail trail and include global service events.",
+            "Protect logs with validation and alert on high-risk IAM activity.",
+        ],
+        "Improves both prevention and detection of credential compromise.",
+        "Deploy CloudTrail through infrastructure as code and protect it with an SCP against deletion or modification.",
+    )
+
+
+# REC005 - AP005 Internet to Compute
+def recommend_internet_to_compute(findings, attack_paths):
+    attack_path = _attack_path(attack_paths, "AP005")
+    if not attack_path:
+        return None
+
+    return _recommendation(
+        "REC005", attack_path, "EC2",
         [
             "Remove unnecessary public IP addresses and place workloads in private subnets.",
-            "Restrict security-group ingress to approved sources and required ports only.",
-            "Require IMDSv2 and set the metadata response hop limit to one unless documented otherwise.",
+            "Restrict SSH ingress to trusted CIDRs, a bastion host, VPN, or Systems Manager Session Manager.",
+            "Require IMDSv2 on all EC2 instances to reduce credential-theft exposure.",
         ],
-        "Reduces internet-to-compute exposure and SSRF-driven credential theft.",
-        "Enforce IMDSv2 and approved security-group patterns through launch templates and AWS Config.",
-    )
-
-
-# REC005 - Reduce IAM Privilege Escalation
-def recommend_iam_least_privilege(findings, attack_paths):
-    finding_ids = ["IAM001", "IAM006", "IAM016", "IAM017", "IAM018", "IAM019"]
-    if not _related_ids(findings, "rule_id", finding_ids):
-        return None
-
-    return _recommendation(
-        "REC005", "Reduce IAM Privilege Escalation Paths",
-        "Replace broad and dangerous IAM permissions with scoped access controls.",
-        "Critical", "IAM", findings, attack_paths, finding_ids, [],
-        [
-            "Replace AdministratorAccess and wildcard actions or resources with task-specific permissions.",
-            "Remove unnecessary IAM write permissions such as policy attachment, PassRole, and access-key creation.",
-            "Apply permissions boundaries to delegated administrative identities.",
-        ],
-        "Limits an attacker’s ability to expand permissions or take over the account.",
-        "Use IAM Access Analyzer policy generation and CI policy validation before deployment.",
-    )
-
-
-# REC006 - Protect S3 Recovery Controls
-def recommend_s3_recovery(findings, attack_paths):
-    finding_ids = ["S3002", "S3005", "S3007"]
-    related = _related_ids(findings, "rule_id", finding_ids)
-    if len(related) < 2:
-        return None
-
-    return _recommendation(
-        "REC006", "Strengthen S3 Ransomware Recovery Controls",
-        "Protect object recovery by combining versioning with an immutability control.",
-        "High", "S3", findings, attack_paths, finding_ids, [],
-        [
-            "Enable S3 Versioning on critical buckets.",
-            "Use Object Lock for backup, audit, or regulated data that requires immutable retention.",
-            "Enable MFA Delete where operationally appropriate and test object recovery procedures.",
-        ],
-        "Improves resilience against destructive changes and ransomware.",
-        "Apply versioning by default through infrastructure-as-code guardrails and monitor drift with AWS Config.",
-    )
-
-
-# REC007 - Strengthen IAM Password Policy
-def recommend_password_policy(findings, attack_paths):
-    finding_ids = ["PP001", "PP002", "PP003", "PP004", "PP005", "PP006", "PP007", "PP008"]
-    if not _related_ids(findings, "rule_id", finding_ids):
-        return None
-
-    return _recommendation(
-        "REC007", "Strengthen IAM Password Policy",
-        "Apply a consistent account password policy for IAM console users.",
-        "High", "IAM", findings, attack_paths, finding_ids, [],
-        [
-            "Require at least 14 characters with uppercase, lowercase, number, and symbol requirements.",
-            "Prevent reuse of the previous 24 passwords.",
-            "Set a password maximum age that meets the organisation's compliance requirements and enforce MFA.",
-        ],
-        "Reduces password guessing, reuse, and credential-stuffing risk.",
-        "Manage the account password policy through infrastructure as code and periodically evaluate it with AWS Config.",
+        "Breaks the internet-to-compute intrusion path.",
+        "Enforce approved launch-template and security-group patterns with AWS Config and infrastructure-as-code checks.",
     )
 
 
 RECOMMENDATION_RULES = [
-    recommend_s3_public_access,
-    recommend_iam_mfa,
-    recommend_cloudtrail_coverage,
-    recommend_ec2_public_compute,
-    recommend_iam_least_privilege,
-    recommend_s3_recovery,
-    recommend_password_policy,
+    recommend_public_data_exposure,
+    recommend_credential_theft,
+    recommend_account_takeover,
+    recommend_stealth_credential_compromise,
+    recommend_internet_to_compute,
 ]

@@ -8,6 +8,7 @@ from scanners.password_policy_scanner import discover_password_policy
 from engine.finding_aggregator import aggregate_findings
 from engine.attack_path_engine import analyze_attack_paths
 from engine.recommendation_engine import analyze_recommendations
+from engine.report_engine import build_report
 
 
 def run_full_scan():
@@ -32,6 +33,7 @@ def run_full_scan():
     findings = aggregate_findings(services)
     attack_paths = analyze_attack_paths(findings)
     recommendations = analyze_recommendations(findings, attack_paths)
+    report = build_report(services, findings, attack_paths, recommendations)
 
     return {
 
@@ -47,6 +49,8 @@ def run_full_scan():
         "recommendations": [
             recommendation.to_dict()
             for recommendation in recommendations
-        ]
+        ],
+
+        "report": report
 
     }
