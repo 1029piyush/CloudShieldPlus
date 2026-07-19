@@ -36,7 +36,7 @@ app.register_blueprint(scan_bp, url_prefix="/api")
 def home():
     return {
         "success": True,
-        "message": "CloudShield+ Backend Running",
+        "message": "CloudIntercept Backend Running",
         "version": "1.0",
     }
 

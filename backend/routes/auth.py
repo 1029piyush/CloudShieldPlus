@@ -77,3 +77,50 @@ def profile():
             },
         }
     ), 200
+
+
+@auth_bp.route("/auth/google", methods=["POST"])
+def google_auth():
+    data = request.get_json() or {}
+    credential = data.get("credential")
+
+    if not credential:
+        return jsonify({"success": False, "message": "Missing Google credential."}), 400
+
+    try:
+        import jwt
+        import uuid
+
+        # Decode the JWT token credential payload without signature validation for local/simulated OAuth
+        payload = jwt.decode(credential, options={"verify_signature": False})
+
+        email = payload.get("email")
+        name = payload.get("name") or payload.get("given_name") or "Google User"
+
+        if not email:
+            return jsonify({"success": False, "message": "Email not found in Google token."}), 400
+
+        # Check if user exists or auto-provision
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Auto-provision
+            user = User(
+                username=email.split("@")[0] + "_" + str(uuid.uuid4())[:4],
+                email=email
+            )
+            user.set_password(str(uuid.uuid4()))
+            db.session.add(user)
+            db.session.commit()
+
+        access_token = create_access_token(identity=str(user.id))
+
+        return jsonify(
+            {
+                "success": True,
+                "token": access_token,
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+            }
+        ), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "message": "Google auth failed: " + str(e)}), 400

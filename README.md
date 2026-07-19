@@ -1,12 +1,12 @@
-CloudShield+
+CloudIntercept
 
 «Open-source AWS Cloud Security Risk Assessment and Monitoring Platform»
 
-CloudShield+ is an open-source cloud security platform designed to help organizations assess their AWS security posture through automated resource discovery, rule-based security analysis, and actionable remediation recommendations.
+CloudIntercept is an open-source cloud security platform designed to help organizations assess their AWS security posture through automated resource discovery, rule-based security analysis, and actionable remediation recommendations.
 
 The platform collects security metadata from AWS services, evaluates resources against security best practices, identifies misconfigurations, classifies findings by severity, and presents results through a centralized dashboard.
 
-CloudShield+ is built with scalability in mind, allowing new cloud services and security rules to be integrated with minimal changes to the overall architecture.
+CloudIntercept is built with scalability in mind, allowing new cloud services and security rules to be integrated with minimal changes to the overall architecture.
 
 ---
 
