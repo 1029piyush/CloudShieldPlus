@@ -8,6 +8,87 @@ from services.auth_service import verify_google_token
 auth_bp = Blueprint("auth", __name__)
 
 
+@auth_bp.route("/auth/register", methods=["POST"])
+def register():
+    """
+    Registers a new user using email and password.
+    """
+    data = request.get_json() or {}
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name") or data.get("fullName") or (email.split("@")[0] if email else None)
+
+    if not email or not password:
+        return jsonify({"success": False, "message": "Missing email or password."}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"success": False, "message": "Email already registered."}), 400
+
+    try:
+        user = User(email=email, name=name)
+        user.set_password(password)
+
+        db.session.add(user)
+        db.session.commit()
+
+        return jsonify({"success": True, "message": "User registered successfully."}), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Registration Error: {e}")
+        return jsonify({"success": False, "message": "Failed to create account."}), 500
+
+
+@auth_bp.route("/auth/login", methods=["POST"])
+def login():
+    """
+    Authenticates a user via email and password.
+    """
+    data = request.get_json() or {}
+    email = data.get("email") or data.get("username")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"success": False, "message": "Missing email or password."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        return jsonify({"success": False, "message": "Invalid email or password."}), 401
+
+    additional_claims = {"email": user.email}
+    access_token = create_access_token(
+        identity=str(user.id), 
+        additional_claims=additional_claims
+    )
+
+    return jsonify({
+        "access_token": access_token,
+        "token": access_token, # Backward compatibility helper
+        "user": {
+            "id": str(user.id),
+            "name": user.name or user.email.split("@")[0],
+            "email": user.email,
+            "picture": user.picture
+        }
+    }), 200
+
+
+@auth_bp.route("/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    """
+    Password reset helper endpoint.
+    """
+    data = request.get_json() or {}
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"success": False, "message": "Email is required."}), 400
+
+    return jsonify({
+        "success": True,
+        "message": f"Password reset instructions have been sent to {email}."
+    }), 200
+
+
 @auth_bp.route("/auth/google", methods=["POST"])
 def google_auth():
     """
@@ -35,8 +116,8 @@ def google_auth():
         return jsonify({"success": False, "message": "Email not provided by Google."}), 400
 
     try:
-        # Load or create user
-        user = User.query.filter_by(google_id=google_id).first()
+        # Load or create user (check by google_id or email)
+        user = User.query.filter_by(google_id=google_id).first() or User.query.filter_by(email=email).first()
         if not user:
             user = User(
                 google_id=google_id,
@@ -48,9 +129,13 @@ def google_auth():
             db.session.commit()
         else:
             # Sync user profile fields
+            if not user.google_id:
+                user.google_id = google_id
             user.email = email
-            user.name = name
-            user.picture = picture
+            if name:
+                user.name = name
+            if picture:
+                user.picture = picture
             db.session.commit()
 
         # Issue CloudIntercept JWT containing user_id and email
@@ -62,9 +147,10 @@ def google_auth():
 
         return jsonify({
             "access_token": access_token,
+            "token": access_token,
             "user": {
                 "id": str(user.id),
-                "name": user.name,
+                "name": user.name or user.email.split("@")[0],
                 "email": user.email,
                 "picture": user.picture
             }

@@ -62,7 +62,7 @@ function Login({ onForgotPassword, onCreateAccount, onAdvancedLogin, onLogin }) 
     const initGsi = () => {
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
-          client_id: "870630654060-p427495s5r1fub6v54qsk8hfl8lphg7c.apps.googleusercontent.com",
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "870630654060-p427495s5r1fub6v54qsk8hfl8lphg7c.apps.googleusercontent.com",
           callback: handleGoogleLoginSuccess,
         });
         window.google.accounts.id.renderButton(
