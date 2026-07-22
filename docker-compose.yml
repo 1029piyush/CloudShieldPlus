@@ -37,6 +37,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       FLASK_ENV: production
+      FLASK_APP: app.py
       JWT_SECRET: ${JWT_SECRET}
       SECRET_KEY: ${SECRET_KEY}
       FERNET_KEY: ${FERNET_KEY}

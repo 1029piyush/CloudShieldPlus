@@ -32,3 +32,5 @@ Flask-JWT-Extended==4.7.4
 google-auth==2.56.0
 requests==2.34.2
 cryptography==49.0.0
+pillow==12.3.0
+reportlab==5.0.0

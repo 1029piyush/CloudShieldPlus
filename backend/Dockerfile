@@ -26,8 +26,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of the backend source code files into the container
 COPY . .
 
+# Make entrypoint.sh executable
+RUN chmod +x entrypoint.sh
+
 # 7. Expose port 5000 to allow inbound network traffic to the Flask application
 EXPOSE 5000
+
+# Set entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # 8. Start the WSGI server using Gunicorn in production mode
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
