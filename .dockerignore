@@ -1,0 +1,36 @@
+# Exclude Node.js and Frontend build files
+node_modules/
+dist/
+build/
+
+# Exclude Git files
+.git/
+.github/
+.gitignore
+
+# Exclude Python environments and cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Exclude IDE and System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Exclude credentials and local environment files
+.env
+.env.*
+!.env.example
+
+# Exclude logs and temporary files
+logs/
+*.log
+tmp/
+temp/
