@@ -1,4 +1,4 @@
-name: CloudIntercept Docker Build CI
+name: CloudIntercept Docker Build & Publish
 
 # 1. Trigger workflow on push or pull request to the main branch
 on:
