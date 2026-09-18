@@ -53,6 +53,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    ports:
+      - "5000:5000"
     networks:
       - cloudintercept-net
 
