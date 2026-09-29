@@ -218,10 +218,128 @@ def attack_internet_to_compute(findings):
     )
 
 
+# ============================================================
+# AP006 - Public Database Exfiltration
+# ============================================================
+def attack_public_database_exfiltration(findings):
+    required = ["RDS001"]
+    if not set(required).issubset(get_rule_ids(findings)):
+        return None
+
+    return _attack_path(
+        "AP006",
+        "Public Database Exfiltration",
+        "An RDS database instance is publicly accessible from the internet, creating a direct path to database brute-force and exfiltration.",
+        "Critical",
+        "High",
+        "Critical",
+        findings,
+        required,
+        [
+            {
+                "step": 1,
+                "title": "Internet Reconnaissance",
+                "description": "Attacker scans public IPv4 address ranges to locate exposed database ports (5432, 3306, 1433).",
+            },
+            {
+                "step": 2,
+                "title": "Authentication Attack",
+                "description": "Attacker performs dictionary attacks or leverages compromised database credentials.",
+            },
+            {
+                "step": 3,
+                "title": "Data Exfiltration",
+                "description": "Attacker queries database tables and streams sensitive business data externally.",
+            },
+        ],
+        "Set PubliclyAccessible to False and place the database instance in a private subnet behind security group boundaries.",
+    )
+
+
+# ============================================================
+# AP007 - Public Lambda Function Exploitation
+# ============================================================
+def attack_public_lambda_exploitation(findings):
+    required = ["LAM001"]
+    if not set(required).issubset(get_rule_ids(findings)):
+        return None
+
+    return _attack_path(
+        "AP007",
+        "Public Serverless Function Exploitation",
+        "A Lambda function has a public Function URL with AuthType NONE, permitting anonymous HTTP invocations.",
+        "High",
+        "High",
+        "High",
+        findings,
+        required,
+        [
+            {
+                "step": 1,
+                "title": "Endpoint Discovery",
+                "description": "Attacker discovers unauthenticated Lambda Function URL endpoint.",
+            },
+            {
+                "step": 2,
+                "title": "Payload Execution",
+                "description": "Attacker crafts HTTP payloads to trigger serverless function execution.",
+            },
+            {
+                "step": 3,
+                "title": "Resource Abuse / Lateral Movement",
+                "description": "Attacker consumes compute resources or abuses execution role credentials embedded in function environment.",
+            },
+        ],
+        "Enforce AWS IAM authentication on Function URLs or restrict access using API Gateway with authorization policies.",
+    )
+
+
+# ============================================================
+# AP008 - Public Container Registry Exposure
+# ============================================================
+def attack_public_container_registry(findings):
+    required = ["ECR002"]
+    if not set(required).issubset(get_rule_ids(findings)):
+        return None
+
+    return _attack_path(
+        "AP008",
+        "Container Image Exfiltration",
+        "An ECR repository policy allows public or wildcard image pull permissions.",
+        "High",
+        "Medium",
+        "High",
+        findings,
+        required,
+        [
+            {
+                "step": 1,
+                "title": "Registry Enumeration",
+                "description": "Attacker enumerates public ECR repository URLs.",
+            },
+            {
+                "step": 2,
+                "title": "Image Pull",
+                "description": "Attacker pulls production container image manifests and layers without authentication.",
+            },
+            {
+                "step": 3,
+                "title": "Credential Harvest",
+                "description": "Attacker extracts hardcoded secrets, configuration files, and proprietary application code from image layers.",
+            },
+        ],
+        "Restrict ECR repository policies to explicit IAM roles and trusted AWS account IDs.",
+    )
+
+
 ATTACK_RULES = [
     attack_public_data_exposure,
     attack_credential_theft,
     attack_account_takeover,
     attack_stealth_compromise,
     attack_internet_to_compute,
+    attack_public_database_exfiltration,
+    attack_public_lambda_exploitation,
+    attack_public_container_registry,
 ]
+

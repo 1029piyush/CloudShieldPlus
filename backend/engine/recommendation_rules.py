@@ -120,11 +120,9 @@ def recommend_enable_s3_block_public_access(findings, attack_paths):
 # REC003 - Enable CloudTrail (Monitoring)
 # ============================================================
 def recommend_enable_cloudtrail(findings, attack_paths):
-    """Enable CloudTrail if stealth operations threat scenario is active."""
-    required_attacks = ["AP004"]
-    active_attacks = get_attack_ids(attack_paths)
-
-    if not any(attack in active_attacks for attack in required_attacks):
+    """Recommend CloudTrail directly from the account-level control finding."""
+    required_attacks = []
+    if "CT001" not in {finding.get("rule_id") for finding in findings}:
         return None
 
     return _recommendation(
@@ -153,6 +151,54 @@ def recommend_enable_cloudtrail(findings, attack_paths):
         estimated_effort="Low",
         expected_risk_reduction="High",
         auto_fix_supported=True,
+    )
+
+
+def recommend_password_policy(findings, attack_paths):
+    if "PP001" not in {finding.get("rule_id") for finding in findings}:
+        return None
+
+    return _recommendation(
+        "REC006", "Configure an IAM password policy",
+        "Create an account password policy with strong length, complexity, reuse, and rotation controls.",
+        "High", "Identity",
+        "Weak or absent password policy controls increase the likelihood of credential compromise.",
+        findings, ["PP001"], attack_paths, [],
+        [{"step": 1, "description": "Define the required IAM password policy."},
+         {"step": 2, "description": "Apply the policy and verify its account-level settings."}],
+        "Low", "High", False,
+    )
+
+
+def recommend_iam_console_credentials(findings, attack_paths):
+    if "IAM013" not in {finding.get("rule_id") for finding in findings}:
+        return None
+
+    return _recommendation(
+        "REC007", "Review console access and active access keys",
+        "Separate human console access from programmatic credentials and remove unused active keys.",
+        "High", "Identity",
+        "A console-enabled identity with active access keys increases the impact of credential compromise.",
+        findings, ["IAM013"], attack_paths, [],
+        [{"step": 1, "description": "Review whether console access and access keys are both required."},
+         {"step": 2, "description": "Enable MFA and rotate or remove unnecessary keys."}],
+        "Medium", "High", False,
+    )
+
+
+def recommend_restrict_egress(findings, attack_paths):
+    if "SG006" not in {finding.get("rule_id") for finding in findings}:
+        return None
+
+    return _recommendation(
+        "REC008", "Restrict unrestricted security group egress",
+        "Replace unrestricted outbound rules with the minimum destinations and ports required by the workload.",
+        "Medium", "Network",
+        "Unrestricted egress can allow compromised resources to communicate with arbitrary external destinations.",
+        findings, ["SG006"], attack_paths, [],
+        [{"step": 1, "description": "Identify required outbound destinations and ports."},
+         {"step": 2, "description": "Replace the unrestricted rule and verify dependent workloads."}],
+        "Medium", "Medium", False,
     )
 
 
@@ -240,6 +286,9 @@ RECOMMENDATION_RULES = [
     recommend_enable_mfa,
     recommend_enable_s3_block_public_access,
     recommend_enable_cloudtrail,
+    recommend_password_policy,
+    recommend_iam_console_credentials,
+    recommend_restrict_egress,
     recommend_remove_public_ssh,
     recommend_enable_imdsv2,
 ]

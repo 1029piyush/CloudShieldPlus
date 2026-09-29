@@ -11,6 +11,7 @@ from models import (
     RecommendationModel,
 )
 from services.credential_service import encrypt_credentials, decrypt_credentials
+from engine.inventory import build_inventory
 
 scan_bp = Blueprint("scan", __name__)
 
@@ -196,6 +197,7 @@ def start_scan():
         from scanners.security_group_scanner import discover_security_groups
         from scanners.cloudtrail_scanner import discover_cloudtrail
         from scanners.password_policy_scanner import discover_password_policy
+        from scanners.vpc_scanner import discover_vpc
 
         services_results = {
             "iam": list_iam_users(),
@@ -204,6 +206,7 @@ def start_scan():
             "security_groups": discover_security_groups(),
             "cloudtrail": discover_cloudtrail(),
             "password_policy": discover_password_policy(),
+            "vpc": discover_vpc(),
         }
 
         # Run Rule Engine
@@ -229,6 +232,12 @@ def start_scan():
         from engine.recommendation_engine import generate_recommendations
 
         recommendations = generate_recommendations(findings, attack_paths)
+        inventory = build_inventory(
+            services_results, findings, attack_paths, recommendations
+        )
+
+        scan.service_inventory = inventory["services"]
+        scan.discovery_snapshot = inventory["raw"]
 
         # Persist Snapshots to Database
         for f in findings:
@@ -551,8 +560,16 @@ def get_dashboard():
         )
 
     # Compute values from database findings snapshot
-    services_set = {f.service for f in latest_scan.findings}
-    resources_set = {f.resource for f in latest_scan.findings}
+    service_inventory = latest_scan.service_inventory or []
+    services_set = {service["service"] for service in service_inventory}
+    resources_set = {
+        resource["resource_id"]
+        for service in service_inventory
+        for resource in service.get("resources", [])
+    }
+    if not service_inventory:
+        services_set = {f.service for f in latest_scan.findings}
+        resources_set = {f.resource for f in latest_scan.findings}
 
     critical_findings_count = len(
         [f for f in latest_scan.findings if f.severity == "Critical"]
@@ -649,7 +666,7 @@ def get_dashboard():
                 },
                 "hero_attack": hero_attack,
                 "top_recommendations": top_recommendations,
-                "services": sorted(list(services_set)),
+                "services": service_inventory or sorted(list(services_set)),
                 "recent_findings": recent_findings,
                 "scan_history": scan_history,
             }
@@ -773,3 +790,66 @@ def get_recommendations():
         ),
         200,
     )
+
+
+@scan_bp.route("/resource-map", methods=["GET"])
+@jwt_required()
+def get_resource_map():
+    user_id = int(get_jwt_identity())
+    aws_account_id = request.args.get("aws_account_id")
+
+    latest_scan = get_latest_scan(user_id, aws_account_id)
+    if not latest_scan:
+        return jsonify({"success": True, "nodes": [], "edges": []}), 200
+
+    from engine.resource_map_engine import build_resource_map
+
+    # Reconstruct mock or actual scan_services structure from findings
+    findings = [
+        {
+            "id": f.id,
+            "rule_id": f.rule_id,
+            "service": f.service,
+            "resource": f.resource,
+            "severity": f.severity,
+            "title": f.title,
+            "description": f.description,
+            "recommendation": f.recommendation,
+            "business_impact": f.business_impact,
+            "evidence": f.evidence,
+        }
+        for f in latest_scan.findings
+    ]
+
+    attack_paths = [
+        {
+            "attack_id": ap.attack_id,
+            "title": ap.title,
+            "affected_resources": ap.affected_resources,
+        }
+        for ap in latest_scan.attack_paths
+    ]
+
+    # Build scan services grouping from findings & resources
+    services_map = {}
+    for f in latest_scan.findings:
+        srv = f.service.lower()
+        if srv not in services_map:
+            services_map[srv] = {"service": f.service, "resources": [], "findings": []}
+        
+        # Check if resource is already in service list
+        existing = [r for r in services_map[srv]["resources"] if r.get("bucket_name") == f.resource or r.get("instance_id") == f.resource or r.get("db_instance_id") == f.resource or r.get("function_name") == f.resource]
+        if not existing:
+            services_map[srv]["resources"].append({
+                "bucket_name": f.resource,
+                "instance_id": f.resource,
+                "db_instance_id": f.resource,
+                "function_name": f.resource,
+                "public_access_block": False if f.severity in ["Critical", "High"] else True,
+                "publicly_accessible": True if f.severity in ["Critical", "High"] else False,
+                "url_public": True if f.severity in ["Critical", "High"] else False,
+                "public_ip": "1.2.3.4" if f.severity in ["Critical", "High"] else None,
+            })
+
+    result = build_resource_map(services_map, findings, attack_paths)
+    return jsonify({"success": True, **result}), 200

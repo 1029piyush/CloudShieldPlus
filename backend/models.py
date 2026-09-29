@@ -57,6 +57,8 @@ class Scan(db.Model):
     started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     completed_at = db.Column(db.DateTime, nullable=True)
     duration = db.Column(db.Float, default=0.0, nullable=False)
+    service_inventory = db.Column(db.JSON, nullable=True)
+    discovery_snapshot = db.Column(db.JSON, nullable=True)
 
     # Relationships
     findings = db.relationship(

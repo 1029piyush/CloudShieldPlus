@@ -412,8 +412,37 @@ RULE_PROFILES = {
         "exploitability": 4,
         "exposure": 4,
         "confidence": 10
-    }
+    },
 
+    # ================= VPC =================
+
+    "VPC001": {
+        "business_impact": 7,
+        "exploitability": 5,
+        "exposure": 5,
+        "confidence": 10
+    },
+
+    "VPC002": {
+        "business_impact": 8,
+        "exploitability": 7,
+        "exposure": 7,
+        "confidence": 10
+    },
+
+    "VPC003": {
+        "business_impact": 8,
+        "exploitability": 8,
+        "exposure": 8,
+        "confidence": 10
+    },
+
+    "VPC004": {
+        "business_impact": 9,
+        "exploitability": 9,
+        "exposure": 9,
+        "confidence": 10
+    }
 }
 
 
