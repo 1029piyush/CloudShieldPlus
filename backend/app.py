@@ -30,7 +30,7 @@ migrate = Migrate(app, db)
 with app.app_context():
     import models
     try:
-        db.create_all(checkfirst=True)
+        db.create_all()
         print("[Database] All tables verified and synchronized successfully.")
     except Exception as e:
         print(f"[Database Error] Table initialization failed: {e}")
@@ -59,3 +59,4 @@ def health():
 # Run Server
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
