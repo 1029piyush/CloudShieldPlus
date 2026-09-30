@@ -1,4 +1,4 @@
-from flask import Flask
+﻿from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -30,7 +30,7 @@ migrate = Migrate(app, db)
 with app.app_context():
     import models
     try:
-        db.create_all()
+        db.create_all(checkfirst=True)
         print("[Database] All tables verified and synchronized successfully.")
     except Exception as e:
         print(f"[Database Error] Table initialization failed: {e}")
