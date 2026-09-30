@@ -5,35 +5,35 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package configuration files
 COPY package*.json ./
-
-# Install package dependencies
 RUN npm install
 
-# Copy all application source code
 COPY . .
 
-# Accept build-time environment variables for Vite
 ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
-# Compile assets for production (outputs to /app/dist)
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve compiled assets with Nginx
+# Stage 2: Serve with Nginx
 # ==========================================
 FROM nginx:alpine
 
-# Copy custom Nginx configuration file to override default config
+# Install envsubst (comes with gettext, already in nginx:alpine)
+RUN apk add --no-cache gettext
+
+# Copy nginx config template
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy compiled frontend assets from builder stage to Nginx web root
+# Copy built frontend
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose standard HTTP port
+# Startup script: substitutes BACKEND_URL env var into nginx config, then starts nginx
+# Falls back to http://backend:5000 if BACKEND_URL is not set (local docker-compose)
+COPY docker-entrypoint-frontend.sh /docker-entrypoint-frontend.sh
+RUN chmod +x /docker-entrypoint-frontend.sh
+
 EXPOSE 80
 
-# Start Nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/docker-entrypoint-frontend.sh"]
