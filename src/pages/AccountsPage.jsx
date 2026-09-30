@@ -55,7 +55,7 @@ export default function AccountsPage() {
         {formMessage && (
           <div className={formMessage.includes('successfully') ? 'rounded-lg px-4 py-2 text-xs font-semibold mb-4 bg-ci-secure/15 text-ci-secure border border-ci-secure/30' : 'rounded-lg px-4 py-2 text-xs font-semibold mb-4 bg-ci-critical/15 text-ci-critical border border-ci-critical/30'}>{formMessage}</div>
         )}
-        <form onSubmit={handleConnectAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={async (e) => { e.preventDefault(); await handleConnectAccount({ account_name: accountName, access_key: accessKey, secret_key: secretKey, region }); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-ci-muted font-semibold">Connection Name</label>
             <input type="text" value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Production Workloads" required className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-ci-accent/60 transition-colors" />
