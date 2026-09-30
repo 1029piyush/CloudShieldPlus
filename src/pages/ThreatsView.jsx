@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDashboard } from "@/context/DashboardContext";
 import { ShieldAlert, AlertTriangle, ArrowRight, Server, Globe } from "lucide-react";
 
-export default function ThreatsView({
-  findings = [],
-  attackPaths = [],
-  recommendations = [],
-  onSelectResource,
-  onNavigateToAttackPath,
-  onNavigateToRecommendation,
-}) {
+export default function ThreatsView() {
+  useEffect(() => { document.title = "CloudShieldPlus | Threats"; }, []);
+  const navigate = useNavigate();
+  const { findings = [], attackPaths = [], recommendations = [], handleOpenResourceDrawer: onSelectResource } = useDashboard();
+  const onNavigateToAttackPath = () => navigate("/attack-paths");
+  const onNavigateToRecommendation = () => navigate("/recommendations");
   const [severityFilter, setSeverityFilter] = useState("ALL");
 
   // Derive contextual threat objects from backend findings & attack paths
@@ -173,3 +173,4 @@ export default function ThreatsView({
     </div>
   );
 }
+

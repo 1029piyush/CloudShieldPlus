@@ -1,7 +1,10 @@
-import React from "react";
+﻿import React, { useEffect } from "react";
+import { useDashboard } from "@/context/DashboardContext";
 import { User, Server, ShieldCheck, Info } from "lucide-react";
 
-export default function SettingsView({ user, accounts = [] }) {
+export default function SettingsView() {
+  useEffect(() => { document.title = "CloudShieldPlus | Settings"; }, []);
+  const { user, accounts = [] } = useDashboard();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* User Profile Panel */}
@@ -19,7 +22,7 @@ export default function SettingsView({ user, accounts = [] }) {
           <div>
             <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>Email Identity</span>
             <p style={{ margin: "2px 0 0 0", color: "var(--text-main)", fontWeight: "600" }}>
-              {user?.email || "operator@cloudintercept.local"}
+              {user?.email || "operator@CloudShieldPlus.local"}
             </p>
           </div>
         </div>
@@ -67,7 +70,7 @@ export default function SettingsView({ user, accounts = [] }) {
           <Info size={16} style={{ color: "var(--accent-primary)" }} /> Console Information & Version
         </h3>
         <div style={{ fontSize: "12px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div>Platform Version: <strong style={{ color: "var(--text-main)" }}>CloudIntercept v2.0 SecOps Console</strong></div>
+          <div>Platform Version: <strong style={{ color: "var(--text-main)" }}>CloudShieldPlus v2.0 Security Console</strong></div>
           <div>Security Engine Architecture: <strong style={{ color: "var(--text-main)" }}>Evidence-First Graph Analysis Engine</strong></div>
           <div>Environment Protection Status: <strong style={{ color: "var(--severity-low-text)" }}>Active Monitoring</strong></div>
         </div>
@@ -75,3 +78,4 @@ export default function SettingsView({ user, accounts = [] }) {
     </div>
   );
 }
+

@@ -32,3 +32,13 @@ htmlcov/
 
 # PostgreSQL
 *.sqlite3
+# Reference projects
+CloudIntercept-main/
+
+# Kiro IDE
+.kiro/
+
+# Python venvs
+.venv/
+.venv-1/
+

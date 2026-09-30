@@ -28,7 +28,7 @@ export default function Navbar({
       case "findings":
         return "Security Findings Explorer";
       case "resource-map":
-        return "Security Resource & Topology Map";
+        return "AWS Architecture Map";
       case "scans":
         return "Scan Execution History";
       case "accounts":

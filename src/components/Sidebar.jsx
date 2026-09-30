@@ -29,7 +29,7 @@ export default function Sidebar({ activeTab, setActiveTab, user }) {
         { id: "attack-paths", label: "Attack Paths", icon: <TrendingUp size={17} /> },
         { id: "recommendations", label: "Recommendations", icon: <BookmarkCheck size={17} /> },
         { id: "findings", label: "Findings", icon: <Search size={17} /> },
-        { id: "resource-map", label: "Resource Map", icon: <Network size={17} /> },
+        { id: "resource-map", label: "Architecture", icon: <Network size={17} /> },
       ],
     },
     {

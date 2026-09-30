@@ -1,278 +1,282 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useDashboard } from "@/context/DashboardContext";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import {
-  ShieldAlert,
-  Server,
-  TrendingUp,
-  BookmarkCheck,
-  Layers,
-  Clock,
-  ArrowRight,
+  ShieldAlert, Server, TrendingUp, BookmarkCheck, Layers,
+  Clock, ArrowRight, CheckCircle2, Zap, AlertTriangle,
+  Activity, Shield, Target,
 } from "lucide-react";
 
-export default function DashboardOverview({
-  findings = [],
-  nodes = [],
-  attackPaths = [],
-  recommendations = [],
-  services = [],
-  summary = {},
-  lastScanTime = null,
-  onNavigateTab,
-  onSelectResource,
-  onNavigateToAttackPath,
-  onNavigateToRecommendation,
-}) {
-  // Calculate top-level security operations metrics
-  const activeThreatsCount = summary.active_threats ?? summary.activeThreats ?? findings.length;
-  const affectedResourcesCount = useMemo(() => {
-    if (summary.affected_resources != null) return summary.affected_resources;
-    if (summary.affectedResources != null) return summary.affectedResources;
-    const set = new Set(findings.map((f) => f.resource));
-    return set.size;
-  }, [findings, summary]);
-  const attackPathsCount = summary.attack_paths ?? summary.attackPaths ?? attackPaths.length;
-  const recommendationsCount = summary.recommendations ?? recommendations.length;
-  const servicesAnalyzedCount = summary.services_analyzed ?? summary.servicesAnalyzed ?? (services.length > 0 ? services.length : new Set(findings.map(f => f.service)).size);
+// ── Severity color map ─────────────────────────────────────────────
+const SEV_COLOR = {
+  Critical: "#EF4444",
+  High:     "#F59E0B",
+  Medium:   "#EAB308",
+  Low:      "#10B981",
+};
 
-  // Format last scan time
-  const lastScanLabel = lastScanTime
-    ? new Date(lastScanTime).toLocaleString()
+const PRIORITY_COLOR = {
+  Critical: "text-ci-critical bg-ci-critical/15 border-ci-critical/30",
+  High:     "text-ci-warning bg-ci-warning/15 border-ci-warning/30",
+  Medium:   "text-yellow-400 bg-yellow-500/15 border-yellow-500/30",
+  Low:      "text-ci-secure bg-ci-secure/15 border-ci-secure/30",
+};
+
+// ── Metric card ────────────────────────────────────────────────────
+function MetricCard({ label, value, sub, color = "text-ci-accent", icon: Icon }) {
+  return (
+    <div className="glass rounded-2xl p-5 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className={`text-[11px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
+        {Icon && <Icon size={16} className={color} />}
+      </div>
+      <p className="text-3xl font-bold text-white leading-none">{value}</p>
+      <p className="text-[11px] text-ci-muted">{sub}</p>
+    </div>
+  );
+}
+
+// ── Custom pie label ───────────────────────────────────────────────
+const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+  if (percent < 0.05) return null;
+  const RADIAN = Math.PI / 180;
+  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700}>{Math.round(percent * 100)}%</text>;
+};
+
+export default function DashboardOverview() {
+  useEffect(() => { document.title = "CloudIntercept | Overview"; }, []);
+  const navigate = useNavigate();
+  const {
+    findings = [],
+    attackPaths = [],
+    recommendations = [],
+    services = [],
+    summary = {},
+    scans = [],
+    loading,
+  } = useDashboard();
+
+  // ── Metrics ──────────────────────────────────────────────────────
+  const lastScan = scans[0] || null;
+  const lastScanLabel = lastScan?.started_at
+    ? new Date(lastScan.started_at).toLocaleString()
     : "Never Scanned";
 
-  // Top unresolved active threats (Critical & High)
-  const topThreats = useMemo(() => {
-    const sorted = [...findings].sort((a, b) => {
-      const weight = { Critical: 4, High: 3, Medium: 2, Low: 1 };
-      return (weight[b.severity] || 0) - (weight[a.severity] || 0);
+  const criticalCount = useMemo(() => findings.filter(f => f.severity === "Critical").length, [findings]);
+  const highCount     = useMemo(() => findings.filter(f => f.severity === "High").length, [findings]);
+  const mediumCount   = useMemo(() => findings.filter(f => f.severity === "Medium").length, [findings]);
+  const lowCount      = useMemo(() => findings.filter(f => f.severity === "Low").length, [findings]);
+
+  const affectedResources = useMemo(() => new Set(findings.map(f => f.resource)).size, [findings]);
+  const servicesCount = useMemo(() => {
+    if (services.length > 0) return services.length;
+    return new Set(findings.map(f => f.service)).size;
+  }, [findings, services]);
+
+  // Security score: 100 - weighted penalty
+  const securityScore = useMemo(() => {
+    if (!findings.length) return 100;
+    const penalty = criticalCount * 8 + highCount * 4 + mediumCount * 2 + lowCount * 0.5;
+    return Math.max(0, Math.round(100 - penalty));
+  }, [criticalCount, highCount, mediumCount, lowCount, findings]);
+
+  const scoreColor = securityScore >= 80 ? "text-ci-secure" : securityScore >= 60 ? "text-ci-warning" : "text-ci-critical";
+  const scoreLabel = securityScore >= 80 ? "Good" : securityScore >= 60 ? "Fair" : "Poor";
+
+  // ── Chart data ───────────────────────────────────────────────────
+  const severityPieData = useMemo(() => {
+    const data = [
+      { name: "Critical", value: criticalCount, color: "#EF4444" },
+      { name: "High",     value: highCount,     color: "#F59E0B" },
+      { name: "Medium",   value: mediumCount,   color: "#EAB308" },
+      { name: "Low",      value: lowCount,      color: "#10B981" },
+    ];
+    return data.filter(d => d.value > 0);
+  }, [criticalCount, highCount, mediumCount, lowCount]);
+
+  const serviceBarData = useMemo(() => {
+    const map = {};
+    findings.forEach(f => {
+      const svc = (f.service || "AWS").toUpperCase();
+      if (!map[svc]) map[svc] = { service: svc, Critical: 0, High: 0, Medium: 0, Low: 0 };
+      if (map[svc][f.severity] !== undefined) map[svc][f.severity]++;
     });
-    return sorted.slice(0, 4);
+    return Object.values(map).sort((a, b) => (b.Critical + b.High) - (a.Critical + a.High)).slice(0, 8);
   }, [findings]);
 
-  // Top recommendations (limit to 4)
-  const topRecommendations = useMemo(() => {
-    return recommendations.slice(0, 4);
+  const topThreats = useMemo(() => {
+    const w = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return [...findings].sort((a, b) => (w[b.severity] || 0) - (w[a.severity] || 0)).slice(0, 5);
+  }, [findings]);
+
+  const topRecs = useMemo(() => {
+    const w = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return [...recommendations].sort((a, b) => (w[b.priority] || 0) - (w[a.priority] || 0)).slice(0, 5);
   }, [recommendations]);
 
+  const hasData = findings.length > 0 || recommendations.length > 0;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 6 Top-Level Operational Metrics Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "14px",
-        }}
-      >
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--severity-critical-text)", textTransform: "uppercase" }}>
-            Active Threats
-          </span>
-          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-main)", margin: "4px 0 0 0" }}>
-            {activeThreatsCount}
-          </h2>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            Verified Security Findings
-          </p>
-        </div>
+    <div className="flex flex-col gap-6">
 
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--severity-high-text)", textTransform: "uppercase" }}>
-            Affected Resources
-          </span>
-          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-main)", margin: "4px 0 0 0" }}>
-            {affectedResourcesCount}
-          </h2>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            Discovered Cloud Assets
-          </p>
+      {/* ── No data banner ─────────────────────────────────────── */}
+      {!hasData && !loading && (
+        <div className="glass rounded-2xl p-6 flex items-center gap-4">
+          <Activity size={32} className="text-ci-accent shrink-0" />
+          <div>
+            <p className="text-white font-semibold">No scan data yet</p>
+            <p className="text-ci-muted text-sm">Run a scan from the top bar to populate the dashboard.</p>
+          </div>
         </div>
+      )}
 
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--accent-primary)", textTransform: "uppercase" }}>
-            Attack Paths
-          </span>
-          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-main)", margin: "4px 0 0 0" }}>
-            {attackPathsCount}
-          </h2>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            Correlated Exploit Chains
-          </p>
-        </div>
-
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--severity-low-text)", textTransform: "uppercase" }}>
-            Recommendations
-          </span>
-          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-main)", margin: "4px 0 0 0" }}>
-            {recommendationsCount}
-          </h2>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            Actionable Mitigations
-          </p>
-        </div>
-
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Services Analyzed
-          </span>
-          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-main)", margin: "4px 0 0 0" }}>
-            {servicesAnalyzedCount}
-          </h2>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            Discovered AWS Services
-          </p>
-        </div>
-
-        <div className="console-panel" style={{ padding: "16px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Last Scan
-          </span>
-          <h4 style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-main)", margin: "8px 0 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {lastScanLabel}
-          </h4>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--text-dim)" }}>
-            AWS Audit Timestamp
-          </p>
-        </div>
+      {/* ── Metric row ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <MetricCard label="Security Score" value={securityScore} sub={scoreLabel} color={scoreColor} icon={Shield} />
+        <MetricCard label="Critical Findings" value={criticalCount} sub="Immediate action" color="text-ci-critical" icon={ShieldAlert} />
+        <MetricCard label="Attack Paths" value={attackPaths.length} sub="Exploit chains" color="text-ci-warning" icon={TrendingUp} />
+        <MetricCard label="Recommendations" value={recommendations.length} sub="Actionable fixes" color="text-ci-accent" icon={BookmarkCheck} />
+        <MetricCard label="Services Scanned" value={servicesCount} sub="AWS services" color="text-ci-muted" icon={Layers} />
+        <MetricCard label="Last Scan" value={lastScan ? new Date(lastScan.started_at).toLocaleDateString() : "—"} sub={lastScan?.status || "Never"} color="text-ci-muted" icon={Clock} />
       </div>
 
-      {/* Main Grid: Active Threats & Recommended Actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* ACTIVE THREATS PANEL */}
-        <div className="console-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-              <ShieldAlert size={16} style={{ color: "var(--severity-critical-text)" }} />
-              ACTIVE THREATS
-            </h3>
-            <button
-              onClick={() => onNavigateTab("threats")}
-              className="btn-secondary"
-              style={{ fontSize: "11px", padding: "4px 10px" }}
-            >
-              View All ({findings.length})
-            </button>
-          </div>
+      {/* ── Charts row ──────────────────────────────────────────── */}
+      {hasData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {topThreats.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0 }}>
-              ✓ No active threats detected in environment.
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {topThreats.map((t) => {
-                const relAp = attackPaths.find((ap) => ap.affected_resources?.includes(t.resource));
-                return (
-                  <div
-                    key={t.id || `${t.rule_id}-${t.resource}`}
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "6px",
-                      padding: "12px",
-                      display: "flex",
-                      justify: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                        <span className={`badge-severity ${t.severity}`}>{t.severity}</span>
-                        <span style={{ fontSize: "11px", color: "var(--text-dim)", fontFamily: "monospace" }}>{t.rule_id}</span>
-                      </div>
-                      <h4 style={{ fontSize: "13px", color: "var(--text-main)", margin: "0 0 2px 0", fontWeight: "600" }}>
-                        {t.title}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "11px", color: "var(--text-dim)", fontFamily: "monospace" }}>
-                        Resource: {t.resource}
-                      </p>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button
-                        onClick={() => onSelectResource(t.resource, t.service)}
-                        className="btn-secondary"
-                        style={{ fontSize: "11px", padding: "4px 8px" }}
-                      >
-                        [View Resource]
-                      </button>
-                      {relAp && (
-                        <button
-                          onClick={() => onNavigateToAttackPath(relAp.attack_id || relAp.id)}
-                          className="btn-secondary"
-                          style={{ fontSize: "11px", padding: "4px 8px", color: "var(--severity-critical-text)" }}
-                        >
-                          [View Attack Path]
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Severity pie */}
+          <div className="glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-white">Findings by Severity</p>
+              <span className="text-[11px] text-ci-muted">{findings.length} total</span>
             </div>
-          )}
-        </div>
-
-        {/* TOP RECOMMENDATIONS PANEL */}
-        <div className="console-panel" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-              <BookmarkCheck size={16} style={{ color: "var(--severity-low-text)" }} />
-              RECOMMENDED ACTIONS
-            </h3>
-            <button
-              onClick={() => onNavigateTab("recommendations")}
-              className="btn-secondary"
-              style={{ fontSize: "11px", padding: "4px 10px" }}
-            >
-              View All ({recommendations.length})
-            </button>
+            <div className="flex items-center gap-6">
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie data={severityPieData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value" labelLine={false} label={renderPieLabel}>
+                    {severityPieData.map((d) => <Cell key={d.name} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "rgba(7,26,47,0.95)", border: "1px solid rgba(125,232,255,0.2)", borderRadius: 10, fontSize: 12 }} /></PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-col gap-2 text-sm">
+                {[["Critical", criticalCount, "#EF4444"], ["High", highCount, "#F59E0B"], ["Medium", mediumCount, "#EAB308"], ["Low", lowCount, "#10B981"]].map(([label, count, color]) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
+                    <span className="text-ci-muted text-xs w-16">{label}</span>
+                    <span className="font-bold text-white text-xs">{count}</span>
+                  </div>
+                ))}
+                <Link to="/findings" className="mt-2 text-[11px] text-ci-accent hover:underline flex items-center gap-1">View all <ArrowRight size={10} /></Link>
+              </div>
+            </div>
           </div>
 
-          {topRecommendations.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0 }}>
-              No active recommendations generated.
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {topRecommendations.map((rec) => (
-                <div
-                  key={rec.recommendation_id || rec.id}
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "6px",
-                    padding: "12px",
-                    display: "flex",
-                    justify: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <span style={{ fontSize: "10px", fontWeight: "700", color: "var(--accent-primary)", uppercase: "true" }}>
-                      Priority: {rec.priority} | {rec.category}
-                    </span>
-                    <h4 style={{ fontSize: "13px", color: "var(--text-main)", margin: "2px 0 2px 0", fontWeight: "600" }}>
-                      {rec.title}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: "11px", color: "var(--text-dim)", fontFamily: "monospace" }}>
-                      Affected: {rec.affected_resources?.[0] || "Multiple Workloads"}
-                    </p>
-                  </div>
+          {/* Service bar chart */}
+          <div className="glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-white">Findings by AWS Service</p>
+              <Link to="/services" className="text-[11px] text-ci-accent hover:underline">View services</Link>
+            </div>
+            {serviceBarData.length === 0 ? (
+              <p className="text-ci-muted text-sm text-center py-8">No findings data</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={serviceBarData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barCategoryGap="30%">
+                  <XAxis dataKey="service" tick={{ fill: "#A9C3D9", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#A9C3D9", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "rgba(7,26,47,0.95)", border: "1px solid rgba(125,232,255,0.2)", borderRadius: 10, fontSize: 12 }} />
+                  <Bar dataKey="Critical" stackId="a" fill="#EF4444" radius={[0,0,0,0]} />
+                  <Bar dataKey="High"     stackId="a" fill="#F59E0B" />
+                  <Bar dataKey="Medium"   stackId="a" fill="#EAB308" />
+                  <Bar dataKey="Low"      stackId="a" fill="#10B981" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      )}
 
-                  <button
-                    onClick={() => onNavigateToRecommendation(rec.recommendation_id || rec.id)}
-                    className="btn-secondary"
-                    style={{ fontSize: "11px", padding: "4px 10px" }}
-                  >
-                    Inspect
-                  </button>
+      {/* ── Threats + Recommendations ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Active Threats */}
+        <div className="glass rounded-2xl p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2"><ShieldAlert size={15} className="text-ci-critical" />Active Threats</h3>
+            <Link to="/findings" className="text-[11px] text-ci-accent hover:underline flex items-center gap-1">View all ({findings.length}) <ArrowRight size={10} /></Link>
+          </div>
+          {topThreats.length === 0 ? (
+            <div className="flex items-center gap-3 py-6 justify-center"><CheckCircle2 size={20} className="text-ci-secure" /><p className="text-ci-muted text-sm">No threats detected</p></div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {topThreats.map((t) => (
+                <div key={t.id || t.rule_id + t.resource} className="glass rounded-xl px-4 py-3 flex items-start gap-3 group hover:border-ci-glow/30 transition-colors">
+                  <span className={`mt-0.5 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase shrink-0 border ${PRIORITY_COLOR[t.severity] || PRIORITY_COLOR.Low}`}>{t.severity}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">{t.title}</p>
+                    <p className="text-[11px] text-ci-muted font-mono truncate">{t.resource}</p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Recommendations */}
+        <div className="glass rounded-2xl p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2"><BookmarkCheck size={15} className="text-ci-secure" />Top Recommendations</h3>
+            <Link to="/recommendations" className="text-[11px] text-ci-accent hover:underline flex items-center gap-1">View all ({recommendations.length}) <ArrowRight size={10} /></Link>
+          </div>
+          {topRecs.length === 0 ? (
+            <div className="flex items-center gap-3 py-6 justify-center"><CheckCircle2 size={20} className="text-ci-secure" /><p className="text-ci-muted text-sm">No recommendations yet</p></div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {topRecs.map((rec) => (
+                <Link key={rec.recommendation_id || rec.id} to="/recommendations"
+                  className="glass rounded-xl px-4 py-3 flex items-start gap-3 hover:border-ci-glow/30 transition-colors no-underline">
+                  <span className={`mt-0.5 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase shrink-0 border ${PRIORITY_COLOR[rec.priority] || PRIORITY_COLOR.Low}`}>{rec.priority}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">{rec.title}</p>
+                    <p className="text-[11px] text-ci-muted truncate">{rec.category} • {rec.affected_resources?.[0] || "Multiple resources"}</p>
+                    {rec.auto_fix_supported && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-ci-secure mt-0.5"><Zap size={9} />Auto-fix available</span>
+                    )}
+                  </div>
+                  <ArrowRight size={13} className="text-ci-muted shrink-0 mt-0.5" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── Attack paths row ─────────────────────────────────────── */}
+      {attackPaths.length > 0 && (
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2"><Target size={15} className="text-ci-warning" />Attack Paths</h3>
+            <Link to="/attack-paths" className="text-[11px] text-ci-accent hover:underline flex items-center gap-1">View all ({attackPaths.length}) <ArrowRight size={10} /></Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {attackPaths.slice(0, 3).map((ap) => (
+              <Link key={ap.attack_id || ap.id} to="/attack-paths" className="glass rounded-xl p-4 hover:border-ci-glow/30 transition-colors no-underline">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase border ${PRIORITY_COLOR[ap.risk] || PRIORITY_COLOR.High}`}>{ap.risk} RISK</span>
+                  <span className="text-[10px] text-ci-muted font-mono">{ap.attack_id}</span>
+                </div>
+                <p className="text-sm font-semibold text-white">{ap.title}</p>
+                <p className="text-[11px] text-ci-muted mt-1 line-clamp-2">{ap.description}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

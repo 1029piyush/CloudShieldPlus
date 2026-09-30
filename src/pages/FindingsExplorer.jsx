@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDashboard } from "@/context/DashboardContext";
 import { Search, Filter, ShieldAlert, ArrowRight, Code, Server, X } from "lucide-react";
 
-export default function FindingsExplorer({
-  findings = [],
-  onSelectResource,
-  onNavigateToAttackPath,
-  onNavigateToRecommendation,
-}) {
+export default function FindingsExplorer() {
+  useEffect(() => { document.title = "CloudShieldPlus | Findings"; }, []);
+  const navigate = useNavigate();
+  const { findings = [], handleOpenResourceDrawer: onSelectResource } = useDashboard();
+  const onNavigateToAttackPath = () => navigate("/attack-paths");
+  const onNavigateToRecommendation = () => navigate("/recommendations");
   const [searchTerm, setSearchTerm] = useState("");
   const [serviceFilter, setServiceFilter] = useState("ALL");
   const [severityFilter, setSeverityFilter] = useState("ALL");
@@ -246,3 +248,4 @@ export default function FindingsExplorer({
     </div>
   );
 }
+

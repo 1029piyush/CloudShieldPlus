@@ -36,4 +36,4 @@ EXPOSE 5000
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # 8. Start the WSGI server using Gunicorn in production mode
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "--timeout", "600", "app:app"]

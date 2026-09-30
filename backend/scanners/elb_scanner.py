@@ -32,6 +32,31 @@ def discover_elb():
                 except Exception:
                     pass
 
+                target_groups = []
+                try:
+                    target_group_response = elbv2.describe_target_groups(
+                        LoadBalancerArn=lb_arn
+                    )
+                    for target_group in target_group_response.get("TargetGroups", []):
+                        target_group_arn = target_group.get("TargetGroupArn")
+                        target_health = elbv2.describe_target_health(
+                            TargetGroupArn=target_group_arn
+                        ).get("TargetHealthDescriptions", [])
+                        target_groups.append({
+                            "target_group_name": target_group.get("TargetGroupName"),
+                            "target_group_arn": target_group_arn,
+                            "vpc_id": target_group.get("VpcId"),
+                            "protocol": target_group.get("Protocol"),
+                            "port": target_group.get("Port"),
+                            "targets": [
+                                target.get("Target", {}).get("Id")
+                                for target in target_health
+                                if target.get("Target", {}).get("Id")
+                            ],
+                        })
+                except Exception:
+                    pass
+
                 resources.append({
                     "load_balancer_name": lb_name,
                     "arn": lb_arn,
@@ -40,6 +65,7 @@ def discover_elb():
                     "vpc_id": vpc_id,
                     "security_groups": sec_groups,
                     "listeners": listeners,
+                    "target_groups": target_groups,
                 })
     except Exception as e:
         print(f"[ELB Scanner Error] {e}")

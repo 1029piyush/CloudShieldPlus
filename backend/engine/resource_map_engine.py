@@ -62,6 +62,152 @@ def build_resource_map(scan_services, findings, attack_paths):
                 "related_attack_paths": ap_ids,
             }
 
+    def add_edge(source, target, relationship, evidence=None):
+        if not source or not target or source not in nodes or target not in nodes:
+            return
+        edge = {
+            "source": source,
+            "target": target,
+            "relationship": relationship,
+            "evidence": evidence or [],
+        }
+        if not any(
+            existing["source"] == source
+            and existing["target"] == target
+            and existing["relationship"] == relationship
+            for existing in edges
+        ):
+            edges.append(edge)
+
+    def resource_identifier(resource):
+        for key in (
+            "resource_id", "instance_id", "bucket_name", "function_name",
+            "db_instance_id", "group_id", "vpc_id", "subnet_id",
+            "route_table_id", "internet_gateway_id", "nat_gateway_id",
+            "endpoint_id", "network_acl_id", "user_name", "username",
+            "load_balancer_name", "target_group_name", "api_id", "arn",
+        ):
+            if resource.get(key):
+                return str(resource[key])
+        return None
+
+    def add_generic_resources():
+        """Fill gaps for services and nested boto3 resources not handled above."""
+        has_public = False
+        deferred_edges = []
+
+        def add_resource(resource, service, resource_type, parent_id=None, relationship=None):
+            nonlocal has_public
+            resource_id = resource_identifier(resource)
+            if not resource_id:
+                return None
+            prefix = service.lower()
+            if resource_type == "SecurityGroup":
+                prefix = "sg"
+            elif resource_type == "Subnet":
+                prefix = "vpc-subnet"
+            elif resource_type == "TargetGroup":
+                prefix = "elb-target-group"
+            node_id = f"{prefix}:{resource_id}"
+            public = bool(
+                resource.get("public_ip")
+                or resource.get("publicly_accessible")
+                or resource.get("public")
+                or resource.get("url_public")
+            )
+            add_node(
+                node_id=node_id,
+                resource_id=resource_id,
+                resource_type=resource_type,
+                service=service,
+                name=resource_id,
+                region=resource.get("region") or resource.get("availability_zone", "us-east-1"),
+                arn=resource.get("arn") or resource.get("role_arn"),
+                exposure="public" if public else "private",
+            )
+            has_public = has_public or public
+            if parent_id and relationship:
+                add_edge(parent_id, node_id, relationship, [f"{resource_type} {resource_id} discovered from boto3"])
+            return node_id
+
+        for service_key, result in scan_services.items():
+            if not isinstance(result, dict):
+                continue
+            service = result.get("service") or service_key.upper()
+            resource_type = service.rstrip("s")
+            for resource in result.get("resources") or []:
+                if not isinstance(resource, dict):
+                    continue
+                node_id = add_resource(resource, service, resource_type)
+
+                if resource.get("vpc_id"):
+                    deferred_edges.append((node_id, f"vpc:{resource['vpc_id']}", "IN_VPC"))
+                if resource.get("subnet_id"):
+                    deferred_edges.append((node_id, f"vpc-subnet:{resource['subnet_id']}", "IN_SUBNET"))
+                for sg_id in resource.get("security_groups") or []:
+                    sg_id = sg_id.get("GroupId") if isinstance(sg_id, dict) else sg_id
+                    deferred_edges.append((node_id, f"sg:{sg_id}", "ATTACHED_SECURITY_GROUP"))
+                role = resource.get("iam_role") or resource.get("role")
+                if role:
+                    role_id = str(role).split("/")[-1]
+                    role_node_id = f"iam-role:{role_id}"
+                    add_node(
+                        role_node_id,
+                        role_id,
+                        "IAMRole",
+                        "IAM",
+                        role_id,
+                        arn=role if str(role).startswith("arn:") else None,
+                    )
+                    add_edge(node_id, role_node_id, "ASSUMES_ROLE")
+
+                if service_key.lower() == "vpc":
+                    for child, child_type, relationship in (
+                        (resource.get("subnets"), "Subnet", "CONTAINS"),
+                        (resource.get("nacls"), "NetworkACL", "PROTECTED_BY"),
+                        (resource.get("endpoints"), "VPCEndpoint", "PROVIDES_ENDPOINT"),
+                    ):
+                        for nested in child or []:
+                            if isinstance(nested, dict):
+                                child_node = add_resource(nested, "VPC", child_type, node_id, relationship)
+                                if child_type == "Subnet" and nested.get("route_table_id"):
+                                    route_table_id = nested["route_table_id"]
+                                    route_table_node = add_resource(
+                                        {"route_table_id": route_table_id},
+                                        "VPC",
+                                        "RouteTable",
+                                    )
+                                    add_edge(child_node, route_table_node, "USES_ROUTE_TABLE")
+                    if resource.get("internet_gateway_id"):
+                        add_resource(
+                            {"internet_gateway_id": resource["internet_gateway_id"]},
+                            "VPC",
+                            "InternetGateway",
+                            node_id,
+                            "ATTACHED_GATEWAY",
+                        )
+
+                if service_key.lower() == "elb":
+                    for target_group in resource.get("target_groups") or []:
+                        if not isinstance(target_group, dict):
+                            continue
+                        target_group_node = add_resource(
+                            target_group,
+                            "ELB",
+                            "TargetGroup",
+                            node_id,
+                            "ROUTES_TO",
+                        )
+                        for target_id in target_group.get("targets") or []:
+                            deferred_edges.append(
+                                (target_group_node, f"ec2:{target_id}", "TARGETS")
+                            )
+
+        for source, target, relationship in deferred_edges:
+            add_edge(source, target, relationship)
+
+        return has_public
+
     # Add Internet Gateway / Public Internet node
     has_public_resources = False
 
@@ -276,6 +422,9 @@ def build_resource_map(scan_services, findings, attack_paths):
             name=vpc_id,
             exposure="public" if vpc.get("has_internet_gateway") else "private",
         )
+
+    if add_generic_resources():
+        has_public_resources = True
 
     # Add Internet Node if any public resources exist
     if has_public_resources or len(nodes) > 0:

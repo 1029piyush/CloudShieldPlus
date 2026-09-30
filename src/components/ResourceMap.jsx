@@ -87,31 +87,54 @@ export default function ResourceMap({
     return Array.from(set).sort();
   }, [nodes]);
 
-  // Grid / positioning calculations for nodes
-  const nodePositions = useMemo(() => {
-    const map = {};
-    const count = filteredNodes.length;
-    if (count === 0) return map;
+  // Arrange resources into AWS-style architecture layers.
+  const architectureLayout = useMemo(() => {
+    const positions = {};
+    if (filteredNodes.length === 0) {
+      return { positions, width: 900, height: 620 };
+    }
 
-    const cols = Math.ceil(Math.sqrt(count * 1.4));
-    const paddingX = 210;
-    const paddingY = 150;
+    const layerForNode = (node) => {
+      const type = (node.resource_type || "").toLowerCase();
+      const service = (node.service || "").toLowerCase();
+      if (node.node_id === "internet:public" || service === "network") return 0;
+      if (["internetgateway", "loadbalancer", "apigateway"].some((value) => type.includes(value)) || service === "elb" || service === "apigateway") return 1;
+      if (type.includes("targetgroup") || type.includes("listener") || service === "cloudfront") return 2;
+      if (["ec2", "lambda", "rds", "ecs", "dynamodb"].some((value) => type.includes(value) || service === value)) return 3;
+      if (type.includes("subnet")) return 4;
+      if (type.includes("routetable") || type.includes("securitygroup") || type.includes("networkacl")) return 5;
+      if (type === "vpc" || service === "vpc") return 6;
+      if (service === "iam" || service === "kms") return 7;
+      return 3;
+    };
 
-    filteredNodes.forEach((node, idx) => {
-      const col = idx % cols;
-      const row = Math.floor(idx / cols);
-
-      if (node.node_id === "internet:public" || node.service === "INTERNET") {
-        map[node.node_id] = { x: 60, y: 160 };
-      } else {
-        map[node.node_id] = {
-          x: 280 + col * paddingX,
-          y: 100 + row * paddingY,
-        };
-      }
+    const layers = new Map();
+    filteredNodes.forEach((node) => {
+      const layer = layerForNode(node);
+      if (!layers.has(layer)) layers.set(layer, []);
+      layers.get(layer).push(node);
     });
 
-    return map;
+    const nodeWidth = 160;
+    const nodeGap = 44;
+    const layerGap = 108;
+    const maxLayerSize = Math.max(...Array.from(layers.values()).map((layer) => layer.length));
+    const width = Math.max(900, maxLayerSize * (nodeWidth + nodeGap) + 80);
+    const height = Math.max(620, (Math.max(...layers.keys()) + 1) * layerGap + 90);
+
+    Array.from(layers.entries()).sort(([left], [right]) => left - right).forEach(([layer, layerNodes]) => {
+      layerNodes.sort((left, right) => (left.name || "").localeCompare(right.name || ""));
+      const rowWidth = layerNodes.length * nodeWidth + Math.max(0, layerNodes.length - 1) * nodeGap;
+      const startX = Math.max(40, (width - rowWidth) / 2);
+      layerNodes.forEach((node, index) => {
+        positions[node.node_id] = {
+          x: startX + index * (nodeWidth + nodeGap),
+          y: 30 + layer * layerGap,
+        };
+      });
+    });
+
+    return { positions, width, height };
   }, [filteredNodes]);
 
   const getStatusBadge = (status) => {
@@ -134,7 +157,7 @@ export default function ResourceMap({
         {/* View Mode Buttons */}
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "resource", label: "Resource Map", icon: <Layers size={13} /> },
+            { id: "resource", label: "Architecture", icon: <Layers size={13} /> },
             { id: "security", label: "Security Map", icon: <ShieldAlert size={13} /> },
             { id: "attack_path", label: "Attack Path Mode", icon: <Activity size={13} /> },
           ].map((mode) => (
@@ -250,11 +273,13 @@ export default function ResourceMap({
               transformOrigin: "top left",
               transition: "transform 0.15s ease-out",
             }}
+            viewBox={`0 0 ${architectureLayout.width} ${architectureLayout.height}`}
+            preserveAspectRatio="xMidYMin meet"
           >
             {/* Render Edges */}
             {edges.map((edge, idx) => {
-              const srcPos = nodePositions[edge.source];
-              const tgtPos = nodePositions[edge.target];
+              const srcPos = architectureLayout.positions[edge.source];
+              const tgtPos = architectureLayout.positions[edge.target];
               if (!srcPos || !tgtPos) return null;
 
               const srcNodeName = nodes.find((n) => n.node_id === edge.source)?.name;
@@ -267,11 +292,13 @@ export default function ResourceMap({
 
               return (
                 <g key={idx}>
-                  <line
-                    x1={srcPos.x + 80}
-                    y1={srcPos.y + 30}
-                    x2={tgtPos.x + 80}
-                    y2={tgtPos.y + 30}
+                  <path
+                    d={
+                      srcPos.y === tgtPos.y
+                        ? `M ${srcPos.x + 80} ${srcPos.y + 30} H ${tgtPos.x + 80}`
+                        : `M ${srcPos.x + 80} ${srcPos.y + 60} V ${(srcPos.y + tgtPos.y + 60) / 2} H ${tgtPos.x + 80} V ${tgtPos.y}`
+                    }
+                    fill="none"
                     stroke={isAttackEdge ? "#EF4444" : "#334155"}
                     strokeWidth={isAttackEdge ? 3 : 1.5}
                     strokeDasharray={edge.relationship === "INTERNET_EXPOSED" ? "5,5" : "none"}
@@ -282,7 +309,7 @@ export default function ResourceMap({
 
             {/* Render Nodes */}
             {filteredNodes.map((node) => {
-              const pos = nodePositions[node.node_id];
+              const pos = architectureLayout.positions[node.node_id];
               if (!pos) return null;
 
               const isSelected = selectedNode?.node_id === node.node_id;

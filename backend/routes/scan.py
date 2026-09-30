@@ -196,17 +196,69 @@ def start_scan():
         from scanners.ec2_scanner import discover_ec2
         from scanners.security_group_scanner import discover_security_groups
         from scanners.cloudtrail_scanner import discover_cloudtrail
+        from scanners.cloudwatch_scanner import discover_cloudwatch
+        from scanners.apigateway_scanner import discover_apigateway
+        from scanners.autoscaling_scanner import discover_autoscaling
+        from scanners.dynamodb_scanner import discover_dynamodb
+        from scanners.ebs_scanner import discover_ebs
+        from scanners.ecr_scanner import discover_ecr
+        from scanners.ecs_scanner import discover_ecs
+        from scanners.eip_scanner import discover_eip
+        from scanners.elb_scanner import discover_elb
+        from scanners.kms_scanner import discover_kms
+        from scanners.lambda_scanner import discover_lambda
+        from scanners.organizations_scanner import discover_organizations
         from scanners.password_policy_scanner import discover_password_policy
+        from scanners.rds_scanner import discover_rds
+        from scanners.route53_scanner import discover_route53
+        from scanners.secretsmanager_scanner import discover_secretsmanager
+        from scanners.sns_scanner import discover_sns
+        from scanners.sqs_scanner import discover_sqs
         from scanners.vpc_scanner import discover_vpc
 
+        def discover_safely(service_name, discover):
+            try:
+                result = discover() or {}
+                if not isinstance(result, dict):
+                    result = {}
+                result.setdefault("service", service_name)
+                result.setdefault("resources", [])
+                result.setdefault("findings", [])
+                return result
+            except Exception as discovery_error:
+                print(f"[Discovery Notice] {service_name} unavailable: {discovery_error}")
+                return {
+                    "service": service_name,
+                    "resources": [],
+                    "findings": [],
+                    "error": str(discovery_error),
+                }
+
         services_results = {
-            "iam": list_iam_users(),
-            "s3": discover_s3(),
-            "ec2": discover_ec2(),
-            "security_groups": discover_security_groups(),
-            "cloudtrail": discover_cloudtrail(),
-            "password_policy": discover_password_policy(),
-            "vpc": discover_vpc(),
+            "apigateway": discover_safely("APIGateway", discover_apigateway),
+            "autoscaling": discover_safely("AutoScaling", discover_autoscaling),
+            "cloudtrail": discover_safely("CloudTrail", discover_cloudtrail),
+            "cloudwatch": discover_safely("CloudWatch", discover_cloudwatch),
+            "dynamodb": discover_safely("DynamoDB", discover_dynamodb),
+            "ebs": discover_safely("EBS", discover_ebs),
+            "ec2": discover_safely("EC2", discover_ec2),
+            "ecr": discover_safely("ECR", discover_ecr),
+            "ecs": discover_safely("ECS", discover_ecs),
+            "eip": discover_safely("EIP", discover_eip),
+            "elb": discover_safely("ELB", discover_elb),
+            "iam": discover_safely("IAM", list_iam_users),
+            "kms": discover_safely("KMS", discover_kms),
+            "lambda": discover_safely("Lambda", discover_lambda),
+            "organizations": discover_safely("Organizations", discover_organizations),
+            "password_policy": discover_safely("PasswordPolicy", discover_password_policy),
+            "rds": discover_safely("RDS", discover_rds),
+            "route53": discover_safely("Route53", discover_route53),
+            "s3": discover_safely("S3", discover_s3),
+            "secretsmanager": discover_safely("SecretsManager", discover_secretsmanager),
+            "security_groups": discover_safely("SecurityGroups", discover_security_groups),
+            "sns": discover_safely("SNS", discover_sns),
+            "sqs": discover_safely("SQS", discover_sqs),
+            "vpc": discover_safely("VPC", discover_vpc),
         }
 
         # Run Rule Engine
@@ -804,7 +856,8 @@ def get_resource_map():
 
     from engine.resource_map_engine import build_resource_map
 
-    # Reconstruct mock or actual scan_services structure from findings
+    # Use the raw boto3 discovery snapshot so the graph reflects real resources,
+    # including resources without security findings.
     findings = [
         {
             "id": f.id,
@@ -830,26 +883,12 @@ def get_resource_map():
         for ap in latest_scan.attack_paths
     ]
 
-    # Build scan services grouping from findings & resources
-    services_map = {}
-    for f in latest_scan.findings:
-        srv = f.service.lower()
-        if srv not in services_map:
-            services_map[srv] = {"service": f.service, "resources": [], "findings": []}
-        
-        # Check if resource is already in service list
-        existing = [r for r in services_map[srv]["resources"] if r.get("bucket_name") == f.resource or r.get("instance_id") == f.resource or r.get("db_instance_id") == f.resource or r.get("function_name") == f.resource]
-        if not existing:
-            services_map[srv]["resources"].append({
-                "bucket_name": f.resource,
-                "instance_id": f.resource,
-                "db_instance_id": f.resource,
-                "function_name": f.resource,
-                "public_access_block": False if f.severity in ["Critical", "High"] else True,
-                "publicly_accessible": True if f.severity in ["Critical", "High"] else False,
-                "url_public": True if f.severity in ["Critical", "High"] else False,
-                "public_ip": "1.2.3.4" if f.severity in ["Critical", "High"] else None,
-            })
-
-    result = build_resource_map(services_map, findings, attack_paths)
+    scan_services = latest_scan.discovery_snapshot or {
+        (service.get("service_key") or service.get("service", "aws")).lower(): {
+            "service": service.get("service"),
+            "resources": [resource.get("data", resource) for resource in service.get("resources", [])],
+        }
+        for service in (latest_scan.service_inventory or [])
+    }
+    result = build_resource_map(scan_services, findings, attack_paths)
     return jsonify({"success": True, **result}), 200

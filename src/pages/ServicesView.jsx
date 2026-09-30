@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
+import { useDashboard } from "@/context/DashboardContext";
 import {
   ChevronRight,
   ChevronDown,
@@ -15,14 +16,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-export default function ServicesView({
-  serviceInventory = [],
-  findings = [],
-  nodes = [],
-  attackPaths = [],
-  recommendations = [],
-  onSelectResource,
-}) {
+export default function ServicesView() {
+  useEffect(() => { document.title = "CloudShieldPlus | Services"; }, []);
+  const { serviceInventory = [], findings = [], mapNodes: nodes = [], attackPaths = [], recommendations = [], handleOpenResourceDrawer: onSelectResource } = useDashboard();
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedServices, setExpandedServices] = useState({});
 
@@ -355,7 +351,7 @@ export default function ServicesView({
                             </h4>
 
                             <p style={{ margin: 0, fontSize: "11px", color: "var(--text-dim)" }}>
-                              Region: {res.region} | {resFindings.length} {resFindings.length === 1 ? "Finding" : "Findings"} · {resAttackPaths.length} Attack Paths
+                              Region: {res.region} | {resFindings.length} {resFindings.length === 1 ? "Finding" : "Findings"} Â· {resAttackPaths.length} Attack Paths
                             </p>
                           </div>
 
@@ -378,7 +374,7 @@ export default function ServicesView({
                                     whiteSpace: "nowrap",
                                   }}
                                 >
-                                  ⚠ {f.title}
+                                  âš  {f.title}
                                 </p>
                               ))
                             )}
@@ -405,3 +401,4 @@ export default function ServicesView({
     </div>
   );
 }
+

@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDashboard } from "@/context/DashboardContext";
 import { BookmarkCheck, Zap, ArrowLeft, ArrowRight, CheckCircle2, Server, Wrench } from "lucide-react";
 
-export default function RecommendationsView({
-  recommendations = [],
-  onSelectResource,
-  onNavigateToAttackPath,
-}) {
+export default function RecommendationsView() {
+  useEffect(() => { document.title = "CloudShieldPlus | Recommendations"; }, []);
+  const navigate = useNavigate();
+  const { recommendations = [], handleOpenResourceDrawer: onSelectResource } = useDashboard();
+  const onNavigateToAttackPath = () => navigate("/attack-paths");
   const [selectedRecId, setSelectedRecId] = useState(null);
 
   const selectedRec = recommendations.find(
@@ -212,3 +214,4 @@ export default function RecommendationsView({
     </div>
   );
 }
+

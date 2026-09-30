@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDashboard } from "@/context/DashboardContext";
 import { TrendingUp, ShieldAlert, Network, ArrowLeft, ArrowRight, Server, CheckCircle2 } from "lucide-react";
 
-export default function AttackPathsView({
-  attackPaths = [],
-  onSelectResource,
-  onNavigateToMap,
-}) {
+export default function AttackPathsView() {
+  useEffect(() => { document.title = "CloudShieldPlus | Attack Paths"; }, []);
+  const navigate = useNavigate();
+  const { attackPaths = [], handleOpenResourceDrawer: onSelectResource, handleNavigateToMap } = useDashboard();
+  const onNavigateToMap = (id) => { handleNavigateToMap(id); navigate("/resource-map"); };
   const [selectedPathId, setSelectedPathId] = useState(null);
 
   const selectedPath = attackPaths.find(
@@ -248,3 +250,4 @@ export default function AttackPathsView({
     </div>
   );
 }
+
