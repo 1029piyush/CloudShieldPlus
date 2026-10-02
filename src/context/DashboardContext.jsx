@@ -60,11 +60,28 @@ export function DashboardProvider({ children }) {
       const res = await api.get("/aws-accounts");
       const list = res.data?.accounts ?? [];
       setAccounts(list);
-      setSelectedAccountId(prev => prev ?? (list.length > 0 ? list[0].id : null));
+      setSelectedAccountId(prev => {
+        const currentId = prev ?? (() => {
+          try {
+            const cachedId = sessionStorage.getItem("csp_accountId");
+            return cachedId ? parseInt(cachedId, 10) : null;
+          } catch {
+            return null;
+          }
+        })();
+        const selected = list.find(account => account.id === currentId);
+        return selected?.id ?? (list.length > 0 ? list[0].id : null);
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to load AWS accounts.");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAccountChange = useCallback((accountId) => {
+    const nextId = Number(accountId);
+    if (!accounts.some(account => account.id === nextId)) return;
+    setSelectedAccountId(nextId);
+  }, [accounts]);
 
   // ── loadData ───────────────────────────────────────────────────────────────
   const loadData = useCallback(async (accountId, silent = false) => {
@@ -111,7 +128,11 @@ export function DashboardProvider({ children }) {
 
   // ── handleRunScan ──────────────────────────────────────────────────────────
   const handleRunScan = useCallback(async () => {
-    if (!selectedAccountId || scanning) return;
+    if (scanning) return;
+    if (!selectedAccountId) {
+      toast.error("Select an AWS account before starting a scan.");
+      return;
+    }
     setScanning(true);
     setScanProgress(0);
     setScanStage("Initializing scan...");
@@ -199,6 +220,7 @@ export function DashboardProvider({ children }) {
     loading, scanning, scanProgress, scanStage, error,
     selectedDrawerResource,
     handleOpenResourceDrawer, handleCloseResourceDrawer,
+    handleAccountChange,
     handleRunScan, handleConnectAccount, handleDeleteAccount,
     loadAccounts, loadData,
   };

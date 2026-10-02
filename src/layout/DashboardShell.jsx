@@ -90,7 +90,7 @@ function ShellInner() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto ci-scroll p-4 lg:p-6">
-          {!selectedAccountId ? (
+          {!selectedAccountId && pathname !== "/accounts" ? (
             <div className="glass rounded-2xl flex flex-col items-center justify-center text-center p-16 mt-4">
               <Server size={44} className="text-ci-muted mb-4" />
               <h2 className="text-lg font-bold text-white mb-2">No AWS Environment Connected</h2>

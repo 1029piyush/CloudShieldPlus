@@ -55,46 +55,49 @@ def get_aws_accounts():
 def add_aws_account():
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
-    account_name = data.get("account_name")
-    access_key = data.get("access_key")
-    secret_key = data.get("secret_key")
-    region = data.get("region")
+    account_name = (data.get("account_name") or "").strip()
+    access_key = (data.get("access_key") or "").strip()
+    secret_key = (data.get("secret_key") or "").strip()
+    region = (data.get("region") or "").strip()
 
     if not access_key or not secret_key or not region:
         return jsonify({"success": False, "message": "Missing AWS credentials."}), 400
 
-    # Validate AWS credentials by attempting a session connection
-    from services.aws_session import connect_to_aws
+    try:
+        # Validate credentials before storing them for this authenticated user.
+        from services.aws_session import connect_to_aws
 
-    validation_result = connect_to_aws(access_key, secret_key, region)
-    if not validation_result["success"]:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "Invalid credentials: "
-                    + validation_result.get("error", "Unknown connection error"),
-                }
-            ),
-            400,
+        validation_result = connect_to_aws(access_key, secret_key, region)
+        if not validation_result["success"]:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Invalid AWS credentials: "
+                        + validation_result.get("error", "Unknown connection error"),
+                    }
+                ),
+                400,
+            )
+
+        aws_account_id = validation_result["account_id"]
+        cred_type, cred_ref = encrypt_credentials(access_key, secret_key)
+
+        account = AWSAccount(
+            user_id=user_id,
+            account_name=account_name or f"AWS Account {aws_account_id[-4:]}",
+            aws_account_id=aws_account_id,
+            region=region,
+            credential_type=cred_type,
+            credential_reference=cred_ref,
         )
 
-    aws_account_id = validation_result["account_id"]
-
-    # Encrypt credentials securely using Fernet service
-    cred_type, cred_ref = encrypt_credentials(access_key, secret_key)
-
-    account = AWSAccount(
-        user_id=user_id,
-        account_name=account_name or f"AWS Account {aws_account_id[-4:]}",
-        aws_account_id=aws_account_id,
-        region=region,
-        credential_type=cred_type,
-        credential_reference=cred_ref,
-    )
-
-    db.session.add(account)
-    db.session.commit()
+        db.session.add(account)
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        print(f"[AWS Account Error] user_id={user_id}: {error}")
+        return jsonify({"success": False, "message": "AWS account connection failed: " + str(error)}), 500
 
     return (
         jsonify(
