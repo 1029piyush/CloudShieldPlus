@@ -53,8 +53,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    ports:
-      - "5000:5000"
     networks:
       - cloudintercept-net
 
@@ -69,6 +67,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       backend:
         condition: service_healthy
