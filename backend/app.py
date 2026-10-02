@@ -8,6 +8,7 @@ import config
 # Import Blueprints
 from routes.auth import auth_bp
 from routes.scan import scan_bp
+from routes.report import report_bp
 
 # Create Flask App
 app = Flask(__name__)
@@ -26,18 +27,10 @@ db.init_app(app)
 jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
-# Create database tables automatically if missing
-with app.app_context():
-    import models
-    try:
-        db.create_all()
-        print("[Database] All tables verified and synchronized successfully.")
-    except Exception as e:
-        print(f"[Database Error] Table initialization failed: {e}")
-
 # Register API Routes
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(scan_bp, url_prefix="/api")
+app.register_blueprint(report_bp, url_prefix="/api")
 
 
 # Home Route
@@ -59,4 +52,5 @@ def health():
 # Run Server
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
