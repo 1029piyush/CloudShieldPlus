@@ -43,6 +43,6 @@ jobs:
             docker compose ps
 
             echo "Checking application..."
-            curl -f https://cloudintercept.sbs/ || exit 1
+            curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-connrefused http://localhost/ > /dev/null
 
             echo "Deployment successful."
