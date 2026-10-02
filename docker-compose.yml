@@ -25,9 +25,7 @@ services:
 
   # 2. Flask API Backend Service
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: 1029piyush/cloudintercept-backend:latest
     container_name: cloudintercept-backend
     restart: unless-stopped
     environment:
@@ -53,22 +51,19 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    ports:
-      - "5000:5000"
     networks:
       - cloudintercept-net
 
   # 3. React Frontend Nginx Service
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    image: 1029piyush/cloudintercept-frontend:latest
     container_name: cloudintercept-frontend
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       backend:
         condition: service_healthy
