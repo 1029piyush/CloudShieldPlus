@@ -27,14 +27,8 @@ db.init_app(app)
 jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
-# Create database tables automatically if missing
 with app.app_context():
-    import models
-    try:
-        db.create_all()
-        print("[Database] All tables verified and synchronized successfully.")
-    except Exception as e:
-        print(f"[Database Error] Table initialization failed: {e}")
+    import models  # noqa: F401  registers models for Alembic autogenerate
 
 # Register API Routes
 app.register_blueprint(auth_bp, url_prefix="/api")

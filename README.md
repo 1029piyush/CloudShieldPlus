@@ -218,6 +218,10 @@ pip install -r requirements.txt
 
 Running the Backend
 
+cd backend
+
+flask db upgrade
+
 python app.py
 
 ---
