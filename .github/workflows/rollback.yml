@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Full Git commit SHA to deploy"
+        description: "Full 40-character Git commit SHA to deploy"
         required: true
         type: string
 
@@ -20,14 +20,20 @@ jobs:
     steps:
       - name: Roll back to selected version
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG
           script: |
             set -e
 
-            IMAGE_TAG="${{ inputs.image_tag }}"
+            if ! [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "ERROR: image_tag must be a 40-character lowercase Git SHA."
+              exit 1
+            fi
 
             cd /home/ubuntu/CloudShieldPlus
 
