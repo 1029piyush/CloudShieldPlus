@@ -8,6 +8,7 @@ import config
 # Import Blueprints
 from routes.auth import auth_bp
 from routes.scan import scan_bp
+from routes.report import report_bp
 
 # Create Flask App
 app = Flask(__name__)
@@ -38,6 +39,7 @@ with app.app_context():
 # Register API Routes
 app.register_blueprint(auth_bp, url_prefix="/api")
 app.register_blueprint(scan_bp, url_prefix="/api")
+app.register_blueprint(report_bp, url_prefix="/api")
 
 
 # Home Route

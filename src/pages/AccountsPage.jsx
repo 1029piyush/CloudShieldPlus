@@ -22,7 +22,12 @@ export default function AccountsPage() {
     setFormLoading(true);
     setFormMessage('');
     try {
-      await handleConnectAccount({ account_name: accountName, access_key: accessKey, secret_key: secretKey, region });
+      await handleConnectAccount({
+        account_name: accountName.trim(),
+        access_key: accessKey.trim(),
+        secret_key: secretKey.trim(),
+        region: region.trim(),
+      });
       setFormMessage('AWS environment connected successfully!');
       setAccountName(''); setAccessKey(''); setSecretKey('');
     } catch (err) {
