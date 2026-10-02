@@ -25,7 +25,7 @@ services:
 
   # 2. Flask API Backend Service
   backend:
-    image: 1029piyush/cloudintercept-backend:latest
+    image: 1029piyush/cloudintercept-backend:${IMAGE_TAG:-latest}
     container_name: cloudintercept-backend
     restart: unless-stopped
     environment:
@@ -56,7 +56,7 @@ services:
 
   # 3. React Frontend Nginx Service
   frontend:
-    image: 1029piyush/cloudintercept-frontend:latest
+    image: 1029piyush/cloudintercept-frontend:${IMAGE_TAG:-latest}
     container_name: cloudintercept-frontend
     restart: unless-stopped
     ports:
