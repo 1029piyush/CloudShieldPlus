@@ -1,0 +1,56 @@
+name: CloudIntercept Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Full Git commit SHA to deploy"
+        required: true
+        type: string
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Roll back CloudIntercept
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Roll back to selected version
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            IMAGE_TAG="${{ inputs.image_tag }}"
+
+            cd /home/ubuntu/CloudShieldPlus
+
+            echo "Rolling back to ${IMAGE_TAG}..."
+
+            docker pull 1029piyush/cloudintercept-backend:${IMAGE_TAG}
+            docker pull 1029piyush/cloudintercept-frontend:${IMAGE_TAG}
+
+            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
+
+            echo "Waiting for services..."
+            sleep 15
+
+            echo "Checking containers..."
+            docker compose ps
+
+            echo "Checking backend health..."
+            docker compose exec -T backend curl -f http://localhost:5000/health
+
+            echo "Checking frontend Nginx..."
+            docker compose exec -T frontend nginx -t
+
+            echo "Checking HTTPS application..."
+            curl -f https://cloudintercept.sbs/ || exit 1
+
+            echo "Rollback successful."
